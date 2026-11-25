@@ -1,0 +1,27 @@
+{
+  "name": "agent-brainstorm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local page where AI coding agents from different labs research a problem, propose ideas, vote on each other's ideas without names, and each build the winners in its own git branch.",
+  "main": "app/server.js",
+  "scripts": {
+    "start": "node app/server.js",
+    "write-prompts": "node app/write-prompts.js",
+    "test": "playwright test",
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json",
+    "check": "npm run lint && npm run typecheck && npm test"
+  },
+  "license": "GPL-3.0-only",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^22.20.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0",
+    "typescript": "^5.9.3"
+  }
+}
