@@ -11,6 +11,8 @@ You watch it live: ideas as they come, every score with its reason, and each bui
 
 It is a way to see what several agents come up with for the same problem, how they judge each other's ideas when they can't see who wrote them, and how the same idea turns out in different hands.
 
+You choose how much to take part: from pressing Start and watching (an agent can even write the brief from a one-line goal) to choosing yourself which ideas get built and judging the results. **[docs/USING.md](docs/USING.md)** explains what the app is good for and each place where you can step in.
+
 ## Run it
 
 You need Node.js 18 or newer, git, and at least two agent command-line tools installed and signed in, for example [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`), [Codex](https://github.com/openai/codex) (`codex`), Antigravity (`agy`) or Mistral Vibe (`vibe`).
@@ -31,6 +33,7 @@ The agents that are not installed are greyed out. Click **Test the agents first*
 |---|---|
 | **Start from an example** | Fills in the form with one of four ready-made software scenarios (below). |
 | **The problem** | What the agents should explore, in your own words. |
+| **Who writes the brief?** | You (what you typed is the problem), or one of the agents, from what you typed as a short goal. |
 | **Context** | A folder on your computer or a git link. The agents read it; each builds on its own copy, and the original is never changed. Leave empty for no material. |
 | **Agents** | Who takes part (at least two, since nobody scores its own ideas). |
 | **Research first?** | No; yes and everyone reads everyone's findings (without names); or yes and each keeps its own. Research is read-only. Agents whose research command allows it may search and read the web. |
@@ -38,7 +41,8 @@ The agents that are not installed are greyed out. Click **Test the agents first*
 | **Instructions written by** | Who wrote the prompts for every step (see *Whose words?* below). |
 | **Ideas per agent / to carry forward / minutes to build** | The size of the run. |
 | **Words per idea, at most** | Optional cap, to test whether longer pitches win votes. |
-| **Pick blind** | Hides authors, votes and builds until you have picked your own favourite ideas and said why (or skipped). Your pick is saved with the run. |
+| **Who decides what gets built?** | The agents' vote, or you: the run waits after the vote until you choose (or hand it back to the vote). |
+| **Pick blind** | Hides authors, votes and builds until you have picked your own favourite ideas and said why (or skipped). Your pick is saved with the run; if you decide what gets built, it is your choice. |
 
 ## What you see, and what is saved
 

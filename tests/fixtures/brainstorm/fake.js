@@ -27,6 +27,7 @@ process.stdin.on('end', () => {
       build: 'CUSTOM build by the writer. Problem: {problem}. Notes: {notes}. Develop:\n{winners}\nCommands: {can_run}.',
     }) + '\n```');
   }
+  if (/writing the brief/.test(p)) return console.log(`Brief by ${name}: ${(/THE PERSON'S GOAL\n(.*)/.exec(p) || [])[1]}, written out in full.`);
   if (/word\.txt/.test(p)) return console.log(fs.readFileSync('word.txt', 'utf8'));
   if (/Propose exactly (\d+)/.test(p)) {
     const n = Number(/Propose exactly (\d+)/.exec(p)[1]);

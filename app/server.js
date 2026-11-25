@@ -83,13 +83,14 @@ async function api(req, res, url) {
     const agents = all.filter(a => (b.agents || []).includes(a.id));
     const missing = agents.filter(a => !a.available).map(a => a.label);
     if (missing.length) return send(res, 400, { error: `Not installed on this machine: ${missing.join(', ')}.` });
+    if (b.brief_by && !agents.some(a => a.id === b.brief_by)) return send(res, 400, { error: 'The agent that writes the brief must be one of the agents taking part.' });
     if (agents.length < 2) return send(res, 400, { error: 'Pick at least two agents: each votes only on the others\' ideas.' });
     const ideas = int(b.ideas_per_agent, 1, 10, 3);
     const top = int(b.top, 1, 10, 2);
     if (top > ideas * (agents.length - 1)) return send(res, 400, { error: `Carrying ${top} forward needs more ideas: each agent only sees the others' ideas.` });
     let run;
     try {
-      run = new Run({ problem, context: placeholderContext(b.context), agents, max_words: int(b.max_words, 0, 500, 0), blind: !!b.blind, example: String(b.example || '').slice(0, 40) || undefined, ideas_per_agent: ideas, top, build_minutes: int(b.build_minutes, 1, 180, 30), research: String(b.research || 'off'), instructions: String(b.instructions || 'claude'), criteria: String(b.criteria || '').split('\n').map(s => s.replace(/^[\s*•\d.)-]+/, '').trim().slice(0, 200)).filter(Boolean), out: OUT });
+      run = new Run({ problem, context: placeholderContext(b.context), agents, max_words: int(b.max_words, 0, 500, 0), blind: !!b.blind, decide: b.decide === 'me' ? 'me' : 'agents', brief_by: b.brief_by ? String(b.brief_by) : undefined, example: String(b.example || '').slice(0, 40) || undefined, ideas_per_agent: ideas, top, build_minutes: int(b.build_minutes, 1, 180, 30), research: String(b.research || 'off'), instructions: String(b.instructions || 'claude'), criteria: String(b.criteria || '').split('\n').map(s => s.replace(/^[\s*•\d.)-]+/, '').trim().slice(0, 200)).filter(Boolean), out: OUT });
     } catch (e) { return send(res, 400, { error: String(e.message || e) }); }
     runs.set(run.S.id, run);
     run.run();
@@ -103,7 +104,7 @@ async function api(req, res, url) {
     // The person's blind pick, or their ratings after the builds; saved with the run.
     const err = setHuman(r.S, await readBody(req));
     if (err) return send(res, 400, { error: err });
-    if (r.past) fs.writeFileSync(path.join(r.S.dir, 'state.json'), JSON.stringify(r.S, null, 2)); else r.save();
+    if (r.past) fs.writeFileSync(path.join(r.S.dir, 'state.json'), JSON.stringify(r.S, null, 2)); else { r.save(); if (r.chosen && r.S.human.pick) r.chosen(); }
     return send(res, 200, { ok: true, human: r.S.human });
   }
   if (parts[3] === 'file' && req.method === 'GET') {

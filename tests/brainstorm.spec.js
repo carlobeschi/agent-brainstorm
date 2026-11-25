@@ -297,3 +297,64 @@ test('ready-made software scenarios: presets, their small projects, and @ contex
   expect(S.example).toBe('bug-hunt');
   expect(fs.existsSync(path.join(S.dir, 'build', 'a', 'logs', 'orders.log'))).toBe(true);
 });
+
+test('where the person steps in: an agent writes the brief from a one-line goal', async () => {
+  expect((await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'x', agents: ['a', 'b'], brief_by: 'c' }) })).json()).error).toMatch(/one of the agents/);
+  const { id } = await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'a nicer cat game', agents: ['a', 'b'], ideas_per_agent: 1, top: 1, brief_by: 'b' }) })).json();
+  const S = await waitDone(id);
+  expect(S.phase).toBe('done');
+  expect(S.goal).toBe('a nicer cat game');
+  expect(S.problem).toBe('Brief by b: a nicer cat game, written out in full.');
+  expect(S.steps['brief/b'].status).toBe('done');
+  expect(fs.readFileSync(path.join(S.dir, 'steps', 'ideas', 'a.prompt.md'), 'utf8')).toContain('Brief by b: a nicer cat game');
+  expect(S.winners_by).toBe('agents');
+});
+
+test('where the person steps in: the run waits for the person to choose what gets built', async ({ page }) => {
+  test.setTimeout(90000);
+  await page.goto(`${BASE}/#k=${key}`);
+  await page.selectOption('#example', '');
+  await page.fill('#problem', 'You choose');
+  await page.fill('#context', '');
+  await page.locator('.agent', { hasText: 'Agent C' }).locator('input').uncheck();
+  await page.locator('.agent', { hasText: 'bad' }).locator('input').uncheck();
+  await page.fill('#ideas', '2');
+  await page.fill('#top', '1');
+  await page.fill('#criteria', '');
+  await page.selectOption('#research', 'off');
+  await page.selectOption('#decide', 'me');
+  await page.uncheck('#blind');
+  await page.getByRole('button', { name: 'Start' }).click();
+  await expect(page.locator('.headline', { hasText: 'Your turn' })).toBeVisible({ timeout: 60000 });
+  // The vote is shown, nothing is being built, and the run waits.
+  await expect(page.locator('table.vote')).toBeVisible();
+  await expect(page.locator('#sec-build')).toHaveCount(0);
+  const id = (await (await api('/api/runs')).json()).find(r => r.problem === 'You choose').id;
+  await new Promise(r => setTimeout(r, 1000));
+  let S = await (await api(`/api/runs/${id}`)).json();
+  expect(S.phase).toBe('choose');
+  expect(S.builds).toBeNull();
+  // Choose an idea the agents did not pick.
+  await page.locator('#sec-choose label.pick', { hasText: 'b idea 1' }).locator('input').check();
+  await page.getByRole('button', { name: 'Build these' }).click();
+  S = await waitDone(id);
+  expect(S.phase).toBe('done');
+  expect(S.winners).toEqual(['b-1']);
+  expect(S.winners_by).toBe('you');
+  expect(S.agents_winners).toHaveLength(1);
+  expect(S.agents_winners[0]).toMatch(/-2$/);
+  expect(S.human.pick.votes_seen).toBe(true);
+  expect(fs.readFileSync(path.join(S.dir, 'steps', 'build', 'a.prompt.md'), 'utf8')).toContain('b idea 1');
+  await expect(page.locator('#sec-results')).toContainText('You chose these.');
+});
+
+test('where the person steps in: stopping a run that waits for the person', async () => {
+  const { id } = await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'Waiting', agents: ['a', 'b'], ideas_per_agent: 1, top: 1, decide: 'me' }) })).json();
+  let S;
+  for (let i = 0; i < 100; i++) { S = await (await api(`/api/runs/${id}`)).json(); if (S.phase === 'choose') break; await new Promise(r => setTimeout(r, 200)); }
+  expect(S.phase).toBe('choose');
+  await api(`/api/runs/${id}/stop`, { method: 'POST', body: '{}' });
+  for (let i = 0; i < 50 && S.phase !== 'stopped'; i++) { await new Promise(r => setTimeout(r, 200)); S = await (await api(`/api/runs/${id}`)).json(); }
+  expect(S.phase).toBe('stopped');
+  expect(S.builds).toBeNull();
+});

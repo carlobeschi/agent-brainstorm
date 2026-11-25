@@ -257,6 +257,18 @@ function adjust(ranking) {
   };
 }
 
+// The brief: from the person's goal (and the material, if any) to a problem statement for the group.
+function briefPrompt(S) {
+  return [
+    'You are writing the brief for a group of AI agents, possibly from different AI labs, who will each research the problem, propose ideas, vote on each other\'s ideas and build the best ones, working on files in a folder with no network.',
+    '', 'THE PERSON\'S GOAL', S.problem, '',
+    contextLine(S, 'current folder'),
+    '',
+    'Write the brief they will all work from: what the goal is, the material and its constraints, who it is for, and what a good result looks like. Stay faithful to the goal: do not add aims the person did not ask for, and say what is left open. At most 200 words.',
+    'Reply with the brief only, as plain text.',
+  ].join('\n');
+}
+
 function votePrompt(S, shown) {
   const c = custom(S, 'vote', { problem: S.problem, context: contextFact(S), count: shown.length, top: S.top,
     ideas: shown.map((i, k) => `I${k + 1}. ${anonymise(i.title)}\n    What: ${anonymise(i.what)}\n    Why: ${anonymise(i.why)}`).join('\n'),
@@ -385,7 +397,7 @@ const slug = s => String(s).toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g,
 
 class Run {
   /**
-   * @param {{ problem: string, context?: string, agents: any[], ideas_per_agent: number, top: number, build_minutes?: number, read_minutes?: number, research?: string, criteria?: string[], instructions?: string, max_words?: number, blind?: boolean, example?: string, out: string, seed?: string }} o
+   * @param {{ problem: string, brief_by?: string, decide?: string, context?: string, agents: any[], ideas_per_agent: number, top: number, build_minutes?: number, read_minutes?: number, research?: string, criteria?: string[], instructions?: string, max_words?: number, blind?: boolean, example?: string, out: string, seed?: string }} o
    */
   constructor(o) {
     const ctx = resolveContext(o.context);
@@ -400,6 +412,9 @@ class Run {
       ideas_per_agent: o.ideas_per_agent, top: o.top, max_words: o.max_words || 0, example: o.example || null,
       // The person's own look: a blind pick before the votes are shown, and ratings after the builds.
       human: { blind: !!o.blind, pick: null, ratings: null },
+      // Where the person steps in. brief_by: an agent writes the full brief from the person's one-line goal
+      // (kept in "goal"). decide: "agents" (their vote picks what is built) or "me" (the run waits for the person).
+      goal: null, brief_by: o.brief_by || null, decide: o.decide === 'me' ? 'me' : 'agents', winners_by: null, agents_winners: null,
       instructions: 'claude', instruction_set: null,
       criteria: (o.criteria || []).map(c => String(c).trim()).filter(Boolean).slice(0, 6),
       research_mode: ['shared', 'own'].includes(o.research || '') ? o.research : 'off', research: null,
@@ -424,6 +439,7 @@ class Run {
 
   stop() {
     this.stopped = true;
+    if (this.chosen) this.chosen();
     for (const c of this.children) killTree(c);
   }
 
@@ -472,6 +488,18 @@ class Run {
     const repo = path.join(this.dir, 'repo');
     setupRepo({ kind: S.context_kind, src: S.context }, repo);
 
+    // Brief (optional): one agent turns the person's short goal into the problem every step uses.
+    if (S.brief_by) {
+      const a = A.find(x => x.id === S.brief_by);
+      if (!a) throw new Error(`no agent "${S.brief_by}" to write the brief`);
+      S.phase = 'brief'; S.goal = S.problem; this.save();
+      const text = await this.step(`brief/${a.id}`, a, 'read', briefPrompt(S), repo, S.read_minutes * 60000);
+      if (this.stopped) return;
+      if (!text) throw new Error('the brief could not be written');
+      S.problem = text.replace(/^```\w*\n?|\n?```$/g, '').trim();
+      this.save();
+    }
+
     // 0. Research (optional)
     if (S.research_mode !== 'off') {
       S.phase = 'research'; S.research = {}; this.save();
@@ -515,7 +543,21 @@ class Run {
     if (!ranked.some(r => r.n)) throw new Error('no vote could be read');
     S.winners = ranked.slice(0, S.top).map(r => r.id);
     S.tie_at_cut = ranked.length > S.top && ranked[S.top - 1].mean === ranked[S.top].mean && ranked[S.top - 1].n === ranked[S.top].n;
+    S.winners_by = 'agents';
     this.save();
+
+    // The person's choice (decide: "me"): the run waits until they pick (a blind pick made earlier counts) or skip.
+    if (S.decide === 'me') {
+      if (!S.human.pick) {
+        S.phase = 'choose'; this.save();
+        await new Promise(resolve => { this.chosen = resolve; });
+        this.chosen = null;
+        if (this.stopped) return;
+      }
+      const p = S.human.pick;
+      if (p && !p.skipped && p.ids.length) { S.agents_winners = S.winners; S.winners = p.ids.slice(0, S.top); S.winners_by = 'you'; }
+      this.save();
+    }
 
     // 3. Build
     S.phase = 'build'; S.builds = {}; this.save();
@@ -625,4 +667,4 @@ function setHuman(S, b) {
   return 'Nothing to save.';
 }
 
-module.exports = { HOME, setHuman, REPORT_MATCH, adjust, wordsOf, wordLimit, PHASES, AGENTS_FILE, loadAgents, commandFor, resolveContext, STEPS, NEEDED, FORMAT, INSTR_DIR, checkInstructions, instructionSets, fillVars, researchPrompt, notesFor, ideasPrompt, votePrompt, parseCriteriaScores, buildPrompt, Run, pastRuns, checkAgents, slug };
+module.exports = { briefPrompt, HOME, setHuman, REPORT_MATCH, adjust, wordsOf, wordLimit, PHASES, AGENTS_FILE, loadAgents, commandFor, resolveContext, STEPS, NEEDED, FORMAT, INSTR_DIR, checkInstructions, instructionSets, fillVars, researchPrompt, notesFor, ideasPrompt, votePrompt, parseCriteriaScores, buildPrompt, Run, pastRuns, checkAgents, slug };
