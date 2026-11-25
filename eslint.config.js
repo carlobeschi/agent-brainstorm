@@ -26,7 +26,7 @@ module.exports = [
   },
   {
     // The page, and code passed to page.evaluate(), run in the browser.
-    files: ['tests/**/*.js', 'app/page.js'],
+    files: ['tests/**/*.js', 'app/page.js', 'demo/*.js', 'docs/demo/*.js'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 ];

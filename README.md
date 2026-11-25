@@ -125,6 +125,16 @@ The outcome step runs the code each agent wrote, with `node --test` in a scratch
 
 The report (Markdown and JSON) is saved next to the runs, and the runs themselves show up on the page as usual. Cost is not measured: with subscriptions a run uses quota, not money.
 
+## An online demo
+
+Nothing runs online: the agents need your computer. What can go online is a replay. `scripts/build-demo.js` turns a few saved runs into a static page: a short set of slides for each run, then the app's own page replaying the run, sped up to about a minute and a half. Nothing on it can start, answer or stop anything.
+
+```
+node scripts/build-demo.js demo/demo.json docs/demo
+```
+
+`demo/demo.json` names the run folders and the slides (`title`, `text`, an optional `image`). Home folder paths are taken out of everything copied, and the script then lists every line that still looks personal (a path, an email address, a key, or a word you add under `watch`), for you to read before you publish the folder, for example with GitHub Pages.
+
 ## Your own agents and models
 
 The agents come from `app/agents.json`. To change them, copy it to `~/.agent-brainstorm/agents.json` (or point `BRAINSTORM_AGENTS` at a file) and edit it. Each agent has:

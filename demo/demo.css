@@ -1,0 +1,20 @@
+  /* ---- The online demo (demo/demo.js) ---- */
+  .deck { position:fixed; inset:0; z-index:50; background:var(--bg); overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:6vh 16px 40px; }
+  .deck[hidden] { display:none; }
+  .slide { max-width:760px; width:100%; }
+  .slide h1 { font-size:clamp(24px, 4vw, 34px); line-height:1.2; margin:6px 0 16px; }
+  .slide p { font-size:17px; line-height:1.6; }
+  .slide .small { font-size:13px; color:var(--mute); }
+  .slide img { max-width:100%; border:1px solid var(--line); border-radius:10px; margin:8px 0; background:#fff; }
+  .slide .cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:22px 0; }
+  .slide .pick { text-align:left; display:flex; flex-direction:column; gap:6px; padding:16px; border-radius:12px; }
+  .slide .pick b { font-size:16px; } .slide .pick span { color:var(--mute); font-size:14px; }
+  .slide .pick:hover { border-color:var(--accent); }
+  .slide .nav { display:flex; gap:10px; margin-top:26px; }
+  .replaybar { position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:8px 16px; background:var(--card); border-top:1px solid var(--line); font-size:13px; }
+  .replaybar span { color:var(--mute); margin-right:auto; }
+  .replaybar button { padding:5px 12px; font-size:13px; }
+  .replaybar[hidden] { display:none; }
+  body:has(.replaybar:not([hidden])) main { padding-bottom:60px; }
+  /* In the replay nothing can be changed: hide the controls that would act on a run. */
+  .runhead .stop, .asks textarea, .asks .actions, #sec-rate, .sec.blind .actions { display:none !important; }

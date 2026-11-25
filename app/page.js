@@ -811,6 +811,8 @@
   }
 
   $('#new').addEventListener('click', form);
+  // The online demo (demo/demo.js) replays saved runs through this same page.
+  if (window.DEMO) window.DEMO.open = openRun;
   if (!KEY) view.replaceChildren(h('p', { class: 'msg' }, 'Open the link the app printed when it started (it carries the key).'));
   else form();
 })();
