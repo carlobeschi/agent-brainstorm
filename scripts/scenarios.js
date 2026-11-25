@@ -29,7 +29,7 @@ const FAKE = flag('fake');
 const SCEN_FILE = opt('file') || path.join(ROOT, 'scenarios', 'scenarios.json');
 const CHECKS = path.join(path.dirname(SCEN_FILE), 'checks');
 const ONLY = opt('only') ? opt('only').split(',') : null;
-const SET = opt('set') || 'basic'; // basic (no "set"), hard, or all
+const SET = opt('set') || 'basic'; // basic (no "set"), hard, more, or all
 const LIMIT_MIN = Number(opt('minutes')) || (FAKE ? 2 : 60); // per scenario, then the run is stopped
 const POLL = FAKE ? 150 : 3000;
 const OUTCOME = !flag('no-outcome');
@@ -58,8 +58,10 @@ async function startApp() {
     app.stdout.on('data', d => { const m = /#k=(\w+)/.exec(String(d)); if (m) resolve(m[1]); });
     app.on('exit', code => reject(new Error(`the app exited (${code})`)));
   });
-  const api = async (p, body) => {
-    const res = await fetch(`http://127.0.0.1:${port}${p}`, { method: body ? 'POST' : 'GET', headers: { 'X-Brainstorm-Key': key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const api = async (p, body, again = true) => {
+    // A long check blocks this process; the app may close the idle connection meanwhile: try once more.
+    const res = await fetch(`http://127.0.0.1:${port}${p}`, { method: body ? 'POST' : 'GET', headers: { 'X-Brainstorm-Key': key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).catch(e => { if (again) return null; throw e; });
+    if (!res) return api(p, body, false);
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || res.statusText);
     return j;
@@ -141,9 +143,12 @@ function copyBuild(from) {
   fs.cpSync(from, to, { recursive: true, filter: s => !/[/\\](\.git|node_modules)([/\\]|$)/.test(s) });
   return to;
 }
-function nodeTest(cwd, files) {
+// Where Playwright keeps its browsers, so a hidden check can take pictures of a build.
+const BROWSERS = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(os.homedir(), process.platform === 'darwin' ? 'Library/Caches/ms-playwright' : '.cache/ms-playwright');
+function nodeTest(cwd, files, extra = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'brainstorm-home-'));
-  const r = spawnSync('node', ['--test', '--test-reporter=tap', ...files], { cwd, encoding: 'utf8', timeout: 120000, env: { PATH: process.env.PATH, HOME: home } });
+  const env = { PATH: process.env.PATH, HOME: home, NODE_PATH: path.join(ROOT, 'node_modules'), PLAYWRIGHT_BROWSERS_PATH: BROWSERS, ...(process.env.CHECK_CHROMIUM ? { CHECK_CHROMIUM: process.env.CHECK_CHROMIUM } : {}), ...extra };
+  const r = spawnSync('node', ['--test', '--test-reporter=tap', ...files], { cwd, encoding: 'utf8', timeout: 180000, env });
   const num = k => Number((new RegExp(`^# ${k} (\\d+)`, 'm').exec(r.stdout || '') || [])[1] || 0);
   const failed = (r.stdout || '').split('\n').filter(l => /^not ok \d+ - /.test(l.trim())).map(l => l.trim().replace(/^not ok \d+ - /, ''));
   // Newer Node prints a different summary unless asked for TAP; no count at all means we could not read it.
@@ -164,7 +169,9 @@ function outcomes(sc, S) {
       fs.rmSync(path.join(c, '.hidden-check'), { recursive: true, force: true });
       fs.mkdirSync(path.join(c, '.hidden-check'));
       fs.copyFileSync(path.join(CHECKS, sc.outcome.hidden), path.join(c, '.hidden-check', sc.outcome.hidden));
-      res.hidden = nodeTest(c, [path.join('.hidden-check', sc.outcome.hidden)]);
+      res.hidden = nodeTest(c, [path.join('.hidden-check', sc.outcome.hidden)], { ...(sc.outcome.env || {}), SHOT_DIR: path.join(S.dir, 'shots', a.id.replace(/[()]/g, '')) });
+      const shots = path.join(S.dir, 'shots', a.id.replace(/[()]/g, ''));
+      if (fs.existsSync(shots)) res.shots = fs.readdirSync(shots).map(f => path.join(shots, f));
     }
     const st = Object.entries(S.steps).filter(([k]) => k.endsWith('/' + a.id));
     res.minutes = Math.round(st.reduce((t, [, x]) => t + (x.ms || 0), 0) / 6000) / 10;
@@ -180,6 +187,7 @@ function report(results, agents, out) {
   for (const r of results) {
     const S = r.S || {};
     L.push(`## ${r.sc.id}: ${r.sc.title}`, '', `Run: ${S.dir || '(none)'} · ${S.phase || r.error}${S.started && S.finished ? ` · ${Math.round((Date.parse(S.finished) - Date.parse(S.started)) / 60000)} min` : ''}`, '');
+    if (r.sc.learn) L.push(`What we hoped to learn: ${r.sc.learn}`, '');
     if (r.error) L.push(`Error: ${r.error}`, '');
     L.push('Flow (the app):', '', ...r.flow.map(c => `- ${c.pass ? '✓' : '✗'} ${c.name}${c.detail ? ` (${c.detail})` : ''}`), '');
     if ((S.questions || []).length) L.push('Questions the agents asked:', '', ...S.questions.map(q => `- ${q.agent}, ${q.kind === 'start' ? 'before the start' : `for help in ${q.step}`}: "${q.text}" → ${q.answer || '(let it decide)'}`), '');
@@ -190,6 +198,8 @@ function report(results, agents, out) {
       for (const o of r.out) L.push(o.missing ? `| ${o.agent} | no build | | | | | |` : o.agent === '(before)' ? `| untouched copy | – | ${t(o.own)} | ${t(o.hidden)} | | | |` : `| ${o.agent} | ${o.files} | ${t(o.own)} | ${t(o.hidden)} | ${o.minutes} | ${o.help} | ${o.retries} |`);
       const fails = r.out.filter(o => o.agent !== '(before)' && o.hidden && o.hidden.failed.length);
       if (fails.length) L.push('', ...fails.map(o => `${o.agent} failed hidden: ${o.hidden.failed.join('; ')}`));
+      const pics = r.out.filter(o => o.shots && o.shots.length);
+      if (pics.length) L.push('', 'Pictures:', ...pics.map(o => `- ${o.agent}: ${o.shots.join(', ')}`));
       L.push('');
     }
   }

@@ -101,6 +101,19 @@ npm run scenarios -- --fake                                 # the tests' fake ag
 | `facilitated-feature` | tags in notes-cli | questions before the start and help at any step; the tag syntax is known only to the person |
 | `person-decides-blind` | the shop-totals bug, from a one-line goal | brief by an agent, shared research, criteria, a word limit, and the person's blind choice of what gets built |
 
+`--set more` runs six scenarios of different kinds. Each one says, before it runs, what it should teach us:
+
+| Scenario | Kind | Hidden check |
+|---|---|---|
+| `more-calc` | technical: a calculator that must follow an exact spec | 12 graded cases, including error positions |
+| `more-speed` | technical: make a slow function fast | same output on every case, and a whole book in under 2 seconds |
+| `more-chart` | build: a chart for a report printed in black and white | a self-contained SVG that names every region, tells them apart without colour and points out the dip in the data; a picture of each chart |
+| `more-animation` | build, open-ended: explain the blind vote to a 12-year-old | a self-contained page that moves and runs without errors; three frames of each |
+| `more-decision` | think and document: a decision record | at most 500 words, the asked sections, every file and function it names exists |
+| `more-guide` | open-ended document, with questions first: a guide to this app for a new contributor | every file and function it names exists |
+
+The pictures need Playwright's Chromium (`npx playwright install chromium`); without it they are skipped.
+
 `--set hard` runs the harder tasks instead (reminders and contacts-import). Each runs twice: once with help allowed, once with nobody to ask. Comparing the hidden tests of the two runs shows what asking changed. `--set all` runs everything.
 
 Each scenario gets two kinds of checks:

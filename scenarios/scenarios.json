@@ -189,6 +189,154 @@
         "own_tests": true
       },
       "set": "hard"
+    },
+    {
+      "id": "more-calc",
+      "title": "Technical: a calculator that must follow an exact spec (precedence, brackets, error positions)",
+      "learn": "Do agents write a real grammar or patch the old loop, and does anyone meet the exact error format? 12 graded cases should separate careful from quick.",
+      "set": "more",
+      "run": {
+        "research": "off",
+        "ideas_per_agent": 2,
+        "top": 1,
+        "build_minutes": 20,
+        "problem": "Read README.md: the calculator only works left to right. Make evaluate follow the spec in README.md exactly, including the error messages, with tests. No new dependencies.",
+        "context": "@examples/calc"
+      },
+      "expect": {
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "calc.test.js",
+        "own_tests": true
+      }
+    },
+    {
+      "id": "more-speed",
+      "title": "Technical: make a slow function fast without changing a single output",
+      "learn": "Do agents measure before and after, and keep the output identical (order of ties, apostrophes) while making it fast?",
+      "set": "more",
+      "run": {
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 15,
+        "problem": "Read README.md: topWords never finishes on a whole book. Make it fast on large texts without changing its output in any case, and show how much faster it is. No new dependencies.",
+        "context": "@examples/wordfreq"
+      },
+      "expect": {
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "wordfreq.test.js",
+        "own_tests": true
+      }
+    },
+    {
+      "id": "more-chart",
+      "title": "Build: a chart for a printed report, black and white",
+      "learn": "Do agents read the data before drawing (the August dip), respect the black-and-white constraint, and how different do their charts look? Pictures in the report.",
+      "set": "more",
+      "run": {
+        "research": "off",
+        "ideas_per_agent": 2,
+        "top": 1,
+        "build_minutes": 20,
+        "problem": "Read README.md and make the chart it asks for, as chart.svg in the current folder. Write it by hand or with a small script in plain Node.js (no libraries).",
+        "context": "@examples/sales-chart",
+        "criteria": "Readable when printed in black and white\nShows what matters in the data\nClean and honest (no distorted scales)",
+        "max_words": 80
+      },
+      "expect": {
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "sales-chart.test.js",
+        "own_tests": false
+      }
+    },
+    {
+      "id": "more-animation",
+      "title": "Build, open-ended: an animation that explains the blind vote to a 12-year-old",
+      "learn": "On an open visual brief, how different are the ideas, does the vote reward ambition, and does what they build actually run and move? Frames in the report.",
+      "set": "more",
+      "run": {
+        "research": "off",
+        "ideas_per_agent": 2,
+        "top": 1,
+        "build_minutes": 20,
+        "problem": "In the current (empty) folder, make index.html: a self-contained looping animation (no network, no libraries) that explains to a 12-year-old, in about 20 seconds, how a blind vote between AI agents works: several agents propose ideas, the ideas are shown without names, nobody scores their own, and the best average wins.",
+        "context": ""
+      },
+      "expect": {
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "animation.test.js",
+        "own_tests": false
+      }
+    },
+    {
+      "id": "more-decision",
+      "title": "Think and document: a decision record grounded in the code",
+      "learn": "When the deliverable is writing, do agents ground claims in the real code (every file and function they name exists), keep the word limit, and reach the same recommendation?",
+      "set": "more",
+      "run": {
+        "research": "shared",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 20,
+        "problem": "The team behind this shop argues about money: keep amounts as integer cents in plain numbers, or introduce a Money type. Read the code, the data and CHANGELOG.md, then write DECISION.md in the current folder: the options, their trade-offs for this code, a recommendation, and what would change our mind. At most 500 words, with sections Options, Recommendation and What would change our mind. Refer to the code by file paths and function names in backticks. Do not change the code.",
+        "context": "@examples/shop-totals",
+        "criteria": "Grounded in this code, not generic\nClear recommendation\nHonest about the costs"
+      },
+      "expect": {
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "grounded-doc.test.js",
+        "own_tests": false,
+        "env": {
+          "DOC": "DECISION.md",
+          "MAX_WORDS": "550",
+          "SECTIONS": "Options|Recommendation|change our mind"
+        }
+      }
+    },
+    {
+      "id": "more-guide",
+      "title": "Open-ended document: a guide for a new contributor to this app, with questions first",
+      "learn": "On a real codebase they have not seen, how much of what agents write about the code is true (files and functions that exist), and do they ask questions on an open brief?",
+      "set": "more",
+      "run": {
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 20,
+        "problem": "Write GUIDE.md for a new contributor to this app (its code is in the current folder): how one run flows from the Start button to the patches, which file does what, and where to make a first change safely. At most 900 words. Name real files and functions in backticks so readers can find them. Do not change the code.",
+        "context": "@app",
+        "ask": true
+      },
+      "expect": {
+        "winners_by": "agents",
+        "questions": true
+      },
+      "outcome": {
+        "hidden": "grounded-doc.test.js",
+        "own_tests": false,
+        "env": {
+          "DOC": "GUIDE.md",
+          "MAX_WORDS": "950"
+        }
+      },
+      "person": {
+        "answers": [
+          {
+            "match": "",
+            "answer": "Write for someone who knows JavaScript but has never seen this app. Practical over complete."
+          }
+        ]
+      }
     }
   ]
 }
