@@ -35,7 +35,11 @@
     if (S.research) X.research = Object.fromEntries(Object.entries(S.research).filter(([a]) => shownBy('research')(a)));
     X.ideas = S.ideas && S.ideas.filter(i => shownBy('ideas')(i.agent));
     if (X.ideas && !X.ideas.length) X.ideas = null;
-    if (!(over || allDone('vote'))) for (const k of ['votes', 'ranking', 'winners', 'voter_means', 'agents_winners', 'tie_at_cut']) X[k] = null;
+    if (!(over || allDone('vote'))) {
+      // Each agent's scores show once its vote is in, as live; the totals only after the last.
+      X.votes = Object.fromEntries(Object.entries(S.votes || {}).filter(([a]) => shownBy('vote')(a)));
+      for (const k of ['ranking', 'winners', 'voter_means', 'agents_winners', 'tie_at_cut']) X[k] = null;
+    }
     if (!over && X.winners_by) X.winners_by = allDone('vote') && phase === 'build' ? S.winners_by : null;
     X.builds = S.builds && (over || phase === 'build') ? Object.fromEntries(Object.entries(S.builds).filter(([a]) => over || done(`build/${a}`))) : null;
     const iso = t => new Date(wall(Date.parse(t))).toISOString();

@@ -456,6 +456,10 @@ test('the online demo: slides, then the page replays a saved run, with nothing t
   await new Promise(r => setTimeout(r, 300));
   await api(`/api/runs/${id}/answer`, { method: 'POST', body: JSON.stringify({ answers: { q1: 'Yes, cheap' } }) });
   const S = await waitDone(id);
+  // One agent's vote ends well before the other's, as with real agents: the replay shows the gap.
+  const sf = path.join(S.dir, 'state.json'), saved = JSON.parse(fs.readFileSync(sf, 'utf8'));
+  saved.steps['vote/a'].ms += 3000; saved.finished = new Date(Date.parse(saved.finished) + 3000).toISOString();
+  fs.writeFileSync(sf, JSON.stringify(saved));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-'));
   fs.writeFileSync(path.join(dir, 'demo.json'), JSON.stringify({ title: 'Demo title', intro: 'Intro.', repo: 'https://example.com', runs: [{ dir: S.dir, title: 'Run one', subtitle: 'sub', slides: [{ title: 'Slide A', text: ['a'] }, { title: 'Slide B', text: ['b'] }] }] }));
   const out = path.join(dir, 'site');
@@ -478,7 +482,7 @@ test('the online demo: slides, then the page replays a saved run, with nothing t
   await expect(page.locator('.phases')).toBeVisible();
   await expect(page.locator('.runhead .stop')).toBeHidden();
   // Later, the question appears as it did live; at the end, with its answer.
-  await page.clock.runFor(95000);
+  for (let t = 0; t < 95; t += 2) await page.clock.runFor(2000); // through every moment, not only the end
   await expect(page.locator('#sec-questions')).toContainText('Should the ideas be cheap?');
   await expect(page.locator('#sec-questions')).toContainText('Yes, cheap');
   await expect(page.locator('.asks textarea')).toBeHidden();
