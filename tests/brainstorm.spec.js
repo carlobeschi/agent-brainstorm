@@ -386,6 +386,7 @@ test('where the person steps in: agents ask questions before they start, and eve
     expect(p).toContain('Q: Who is it for?\nA: Children aged 8 to 12');
     expect(p).toContain('Q: Any deadline?\nA: (no answer: use your own judgement)');
     expect(p).not.toContain('HELP: your question'); // help was not turned on
+    expect(p).toContain('NOBODY TO ASK'); // so no plan waits on a question
   }
   await expect(page.locator('.asks')).toHaveCount(0);
   await expect(page.locator('#sec-questions')).toContainText('Children aged 8 to 12');
@@ -409,6 +410,7 @@ test('where the person steps in: an agent stops mid-step to ask for help, then c
   const again = fs.readFileSync(path.join(dir, 'b.prompt-2.md'), 'utf8');
   expect(again).toContain('The person answered: Yes, under 100 euros');
   expect(again).toContain('IF YOU NEED THE PERSON'); // one more question is still allowed
+  expect(again).not.toContain('NOBODY TO ASK');
   // Help answers go only to the agent that asked.
   expect(fs.readFileSync(path.join(S.dir, 'steps', 'vote', 'a.prompt.md'), 'utf8')).not.toContain('under 100 euros');
 });

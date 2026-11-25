@@ -291,6 +291,8 @@ function helpOf(text) {
   const m = /^[\s>*_#-]*HELP\s*[:\-–]\s*[*_]*\s*(.+)$/im.exec(String(text || ''));
   return m ? m[1].replace(/[*_]+$/, '').trim() : null;
 }
+// With help off, nobody answers during the run: say so, so that no plan (or build) waits on a question.
+const ALONE = ['', '', 'NOBODY TO ASK', 'Nobody can answer questions during this run. Where something is unclear, make the most reasonable choice, say which choice you made, and carry on. Do not make a plan that depends on asking anyone.'].join('\n');
 function helpRule(mode, can) {
   if (!can) return '\n\nYou cannot ask the person again in this step: finish it with your own judgement.';
   return ['', '', 'IF YOU NEED THE PERSON',
@@ -547,7 +549,7 @@ class Run {
     const asks = help && S.help;
     const base = path.join(this.dir, 'steps', name);
     fs.mkdirSync(path.dirname(base), { recursive: true });
-    let full = prompt + qaBlock(S) + (asks ? helpRule(mode, true) : '');
+    let full = prompt + qaBlock(S) + (asks ? helpRule(mode, true) : help ? ALONE : '');
     fs.writeFileSync(base + '.prompt.md', full);
     const st = this.S.steps[name] = { agent: agent.id, mode, status: 'running', started: Date.now(), ms: null, why: null, tries: 1, first_why: null, asked: 0, reply: '', live: { out: '', err: '' } };
     let r = await this.attempt(st, agent, mode, full, cwd, ms);
@@ -787,4 +789,4 @@ function setHuman(S, b) {
   return 'Nothing to save.';
 }
 
-module.exports = { questionsPrompt, parseQuestions, qaBlock, helpOf, MAX_HELP, briefPrompt, HOME, setHuman, REPORT_MATCH, adjust, wordsOf, wordLimit, PHASES, AGENTS_FILE, loadAgents, commandFor, resolveContext, STEPS, NEEDED, FORMAT, INSTR_DIR, checkInstructions, instructionSets, fillVars, researchPrompt, notesFor, ideasPrompt, votePrompt, parseCriteriaScores, buildPrompt, Run, pastRuns, checkAgents, slug };
+module.exports = { ALONE, questionsPrompt, parseQuestions, qaBlock, helpOf, MAX_HELP, briefPrompt, HOME, setHuman, REPORT_MATCH, adjust, wordsOf, wordLimit, PHASES, AGENTS_FILE, loadAgents, commandFor, resolveContext, STEPS, NEEDED, FORMAT, INSTR_DIR, checkInstructions, instructionSets, fillVars, researchPrompt, notesFor, ideasPrompt, votePrompt, parseCriteriaScores, buildPrompt, Run, pastRuns, checkAgents, slug };

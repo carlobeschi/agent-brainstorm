@@ -123,7 +123,7 @@
       "id": "hard-reminders-alone",
       "title": "Harder: the same task, but nobody to ask; agents must guess the unwritten rules",
       "run": {
-        "problem": "Read README.md: users report reminders arriving at the wrong time around the clock changes, and on the wrong day for some monthly reminders. Make every reminder fire at the right local time and on the right day all year, in any time zone, with tests for what you fix. Keep nextRun and runs as they are called today; no new dependencies. A few edge cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+        "problem": "Read README.md: users report reminders arriving at the wrong time around the clock changes, and on the wrong day for some monthly reminders. Make every reminder fire at the right local time and on the right day all year, in any time zone, with tests for what you fix. Keep nextRun and runs as they are called today; no new dependencies. A few edge cases follow rules the team has decided but not written down: nobody can be asked during this run, so decide them as well as you can and say what you decided.",
         "context": "@examples/reminders",
         "research": "off",
         "ideas_per_agent": 1,
@@ -173,7 +173,7 @@
       "id": "hard-contacts-alone",
       "title": "Harder: the same task, but nobody to ask",
       "run": {
-        "problem": "Read README.md: the sales team reports broken imports from their CRM export (data/export.csv is a real one). Make importContacts read every export correctly, with tests for what you fix. Keep importContacts as it is called today; no new dependencies. A few cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+        "problem": "Read README.md: the sales team reports broken imports from their CRM export (data/export.csv is a real one). Make importContacts read every export correctly, with tests for what you fix. Keep importContacts as it is called today; no new dependencies. A few cases follow rules the team has decided but not written down: nobody can be asked during this run, so decide them as well as you can and say what you decided.",
         "context": "@examples/contacts-import",
         "research": "off",
         "ideas_per_agent": 1,
