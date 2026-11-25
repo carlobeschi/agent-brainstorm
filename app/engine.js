@@ -257,6 +257,54 @@ function adjust(ranking) {
   };
 }
 
+// ---- Questions to the person ----
+
+const MAX_HELP = 2;
+
+// Before the work: the questions an agent would like answered. "NONE" for none; at most three.
+function questionsPrompt(S) {
+  return [
+    `You are one of ${S.agents.length} AI agents, possibly from different AI labs, about to explore a problem together: research it, propose ideas, vote on each other's ideas and build the best ones.`,
+    '', 'THE PROBLEM', S.problem, '',
+    contextLine(S, 'current folder'),
+    '',
+    'Before anyone starts, the person who set the problem will answer questions, like a facilitator in a design sprint. Every agent will see all the questions and answers, without names.',
+    'Ask only what would really change the work: what the goal or the people it is for are, a constraint, what "good" means. At most 3 questions. If the problem is clear enough, ask none.',
+    'Reply with one line per question and nothing else, like this:',
+    'QUESTION: one question, in one sentence',
+    'or, with no questions, just:',
+    'NONE',
+  ].join('\n');
+}
+function parseQuestions(text) {
+  return String(text).split('\n').map(l => /^[\s>*_#\d.)-]*QUESTION\s*\d*\s*[:\-–]\s*[*_]*\s*(.+)$/i.exec(l)).filter(Boolean).map(m => m[1].replace(/[*_]+$/, '').trim()).filter(Boolean).slice(0, 3);
+}
+// Everything the person said before the work, for every later prompt.
+function qaBlock(S) {
+  const qs = (S.questions || []).filter(q => q.kind === 'start' && q.answered);
+  if (!qs.length) return '';
+  return ['', '', 'WHAT THE PERSON SAID (before the work started, the agents asked some questions; here they are, without names, with the answers)',
+    ...qs.map(q => `Q: ${anonymise(q.text)}\nA: ${q.answer || '(no answer: use your own judgement)'}`)].join('\n');
+}
+// "HELP: ..." on a line of its own: the agent stopped to ask.
+function helpOf(text) {
+  const m = /^[\s>*_#-]*HELP\s*[:\-–]\s*[*_]*\s*(.+)$/im.exec(String(text || ''));
+  return m ? m[1].replace(/[*_]+$/, '').trim() : null;
+}
+function helpRule(mode, can) {
+  if (!can) return '\n\nYou cannot ask the person again in this step: finish it with your own judgement.';
+  return ['', '', 'IF YOU NEED THE PERSON',
+    'A person is following this run and can answer you. If you are stuck, or something important is unclear and you cannot reasonably decide it yourself, stop and reply with only this line:',
+    'HELP: your question, in one or two sentences',
+    `The person's answer will come back to you and you will carry on${mode === 'build' ? '; your files stay as they are' : ''}. Ask only when you need to.`].join('\n');
+}
+function resumeBlock(mode, q, answer) {
+  return ['', '', 'YOUR QUESTION AND THE ANSWER',
+    `Earlier in this step you stopped and asked the person: ${q}`,
+    `The person answered: ${answer || '(no answer: use your own judgement)'}`,
+    mode === 'build' ? 'Carry on and finish the step. Your folder already holds the work you did before asking.' : 'Now do the step.'].join('\n');
+}
+
 // The brief: from the person's goal (and the material, if any) to a problem statement for the group.
 function briefPrompt(S) {
   return [
@@ -397,13 +445,15 @@ const slug = s => String(s).toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g,
 
 class Run {
   /**
-   * @param {{ problem: string, brief_by?: string, decide?: string, context?: string, agents: any[], ideas_per_agent: number, top: number, build_minutes?: number, read_minutes?: number, research?: string, criteria?: string[], instructions?: string, max_words?: number, blind?: boolean, example?: string, out: string, seed?: string }} o
+   * @param {{ problem: string, brief_by?: string, decide?: string, ask?: boolean, help?: boolean, context?: string, agents: any[], ideas_per_agent: number, top: number, build_minutes?: number, read_minutes?: number, research?: string, criteria?: string[], instructions?: string, max_words?: number, blind?: boolean, example?: string, out: string, seed?: string }} o
    */
   constructor(o) {
     const ctx = resolveContext(o.context);
     const id = `${stamp()}-${slug(o.problem)}`;
     this.dir = path.join(o.out, id);
     this.children = new Set();
+    /** @type {Map<string, (answer: string) => void>} questions waiting for the person */
+    this.waiting = new Map();
     this.stopped = false;
     this.S = {
       id, problem: String(o.problem).trim(), context: ctx.src, context_kind: ctx.kind,
@@ -414,6 +464,9 @@ class Run {
       human: { blind: !!o.blind, pick: null, ratings: null },
       // Where the person steps in. brief_by: an agent writes the full brief from the person's one-line goal
       // (kept in "goal"). decide: "agents" (their vote picks what is built) or "me" (the run waits for the person).
+      // ask: each agent may ask the person questions before the work starts. help: an agent may stop
+      // at any step to ask for help. Every question and answer is kept in "questions".
+      ask: !!o.ask, help: !!o.help, questions: [],
       goal: null, brief_by: o.brief_by || null, decide: o.decide === 'me' ? 'me' : 'agents', winners_by: null, agents_winners: null,
       instructions: 'claude', instruction_set: null,
       criteria: (o.criteria || []).map(c => String(c).trim()).filter(Boolean).slice(0, 6),
@@ -439,27 +492,82 @@ class Run {
 
   stop() {
     this.stopped = true;
+    for (const resolve of this.waiting.values()) resolve('');
+    this.waiting.clear();
     if (this.chosen) this.chosen();
     for (const c of this.children) killTree(c);
   }
 
   // One step, kept in steps/<name>. Reads and votes are tried once more if they fail.
-  async step(name, agent, mode, prompt, cwd, ms) {
-    const base = path.join(this.dir, 'steps', name);
-    fs.mkdirSync(path.dirname(base), { recursive: true });
-    fs.writeFileSync(base + '.prompt.md', prompt);
-    const st = this.S.steps[name] = { agent: agent.id, mode, status: 'running', started: Date.now(), ms: null, why: null, tries: 1, first_why: null, reply: '', live: { out: '', err: '' } };
+  // One agent call with a retry: reads and votes are tried once more if they fail; a build
+  // only if it failed (not ran out of time) before changing anything.
+  async attempt(st, agent, mode, prompt, cwd, ms) {
     let r = await runOnce(agent, mode, prompt, cwd, ms, st.live, this.children);
-    // A build is tried again only if it failed (not ran out of time) before changing anything.
     const untouched = () => { try { return !git(cwd, 'status', '--porcelain'); } catch { return false; } };
-    st.tries = 1;
     if (r.why && r.why !== 'timed out' && !this.stopped && (mode !== 'build' || untouched())) {
-      st.tries = 2; st.first_why = r.why;
+      st.tries++; st.first_why = r.why;
       st.live = { out: '', err: '' };
       r = await runOnce(agent, mode, prompt, cwd, ms, st.live, this.children);
     }
+    return r;
+  }
+
+  // A question to the person: the step (or the run) waits for the answer. Returns the answer, or '' if skipped.
+  ask(agent, step, kind, text) {
+    const S = this.S;
+    S.questions = S.questions || [];
+    const q = { id: `q${S.questions.length + 1}`, agent: agent.id, step, kind, text: String(text).slice(0, 1000), asked: new Date().toISOString(), answer: null, answered: null };
+    S.questions.push(q);
+    this.save();
+    return new Promise(resolve => { this.waiting.set(q.id, resolve); });
+  }
+
+  // The person's answers, { qid: text }. An empty answer means "decide yourself".
+  answer(answers) {
+    const S = this.S;
+    let n = 0;
+    for (const [id, text] of Object.entries(answers || {})) {
+      const q = (S.questions || []).find(x => x.id === id);
+      const resolve = this.waiting.get(id);
+      if (!q || q.answered || !resolve) continue;
+      q.answer = String(text == null ? '' : text).slice(0, 4000).trim();
+      q.answered = new Date().toISOString();
+      this.waiting.delete(id);
+      resolve(q.answer);
+      n++;
+    }
+    this.save();
+    return n;
+  }
+
+  // One step, kept in steps/<name>. With "help" on, the agent may stop with "HELP: question";
+  // the step then waits for the person's answer and runs again with it (at most MAX_HELP times).
+  async step(name, agent, mode, prompt, cwd, ms, { help = true } = {}) {
+    const S = this.S;
+    const asks = help && S.help;
+    const base = path.join(this.dir, 'steps', name);
+    fs.mkdirSync(path.dirname(base), { recursive: true });
+    let full = prompt + qaBlock(S) + (asks ? helpRule(mode, true) : '');
+    fs.writeFileSync(base + '.prompt.md', full);
+    const st = this.S.steps[name] = { agent: agent.id, mode, status: 'running', started: Date.now(), ms: null, why: null, tries: 1, first_why: null, asked: 0, reply: '', live: { out: '', err: '' } };
+    let r = await this.attempt(st, agent, mode, full, cwd, ms);
+    let spent = r.ms;
+    while (asks && !r.why && !this.stopped && st.asked < MAX_HELP) {
+      const q = helpOf(r.text);
+      if (!q) break;
+      st.asked++;
+      fs.writeFileSync(`${base}.help-${st.asked}.md`, r.text);
+      st.status = 'asking'; st.live = { out: '', err: '' };
+      const answer = await this.ask(agent, name, 'help', q);
+      if (this.stopped) break;
+      full = prompt + qaBlock(S) + resumeBlock(mode, q, answer) + helpRule(mode, st.asked < MAX_HELP);
+      fs.writeFileSync(`${base}.prompt-${st.asked + 1}.md`, full);
+      st.status = 'running'; st.started = Date.now();
+      r = await this.attempt(st, agent, mode, full, cwd, ms);
+      spent += r.ms;
+    }
     if (r.err) fs.writeFileSync(base + '.stderr.txt', r.err);
-    st.ms = r.ms;
+    st.ms = spent;
     st.why = this.stopped ? 'stopped' : r.why;
     // A build that ran out of time may still have done good work: it is kept.
     const ok = !st.why || (mode === 'build' && st.why === 'timed out');
@@ -498,6 +606,18 @@ class Run {
       if (!text) throw new Error('the brief could not be written');
       S.problem = text.replace(/^```\w*\n?|\n?```$/g, '').trim();
       this.save();
+    }
+
+    // Questions (optional): before any work, each agent may ask the person up to three questions.
+    // The run waits for the answers; every later prompt carries them all.
+    if (S.ask) {
+      S.phase = 'questions'; this.save();
+      const asked = await Promise.all(A.map(a => this.step(`questions/${a.id}`, a, 'read', questionsPrompt(S), repo, readMs, { help: false })));
+      if (this.stopped) return;
+      const waits = [];
+      A.forEach((a, k) => parseQuestions(asked[k] || '').forEach(q => waits.push(this.ask(a, `questions/${a.id}`, 'start', q))));
+      await Promise.all(waits);
+      if (this.stopped) return;
     }
 
     // 0. Research (optional)
@@ -586,7 +706,7 @@ function pastRuns(out) {
     try {
       const S = JSON.parse(fs.readFileSync(path.join(out, d, 'state.json'), 'utf8'));
       if (!['done', 'failed', 'stopped'].includes(S.phase)) S.phase = 'stopped';
-      for (const st of Object.values(S.steps || {})) if (st.status === 'running') st.status = 'failed';
+      for (const st of Object.values(S.steps || {})) if (['running', 'asking'].includes(st.status)) st.status = 'failed';
       return S;
     } catch { return null; }
   }).filter(Boolean);
@@ -667,4 +787,4 @@ function setHuman(S, b) {
   return 'Nothing to save.';
 }
 
-module.exports = { briefPrompt, HOME, setHuman, REPORT_MATCH, adjust, wordsOf, wordLimit, PHASES, AGENTS_FILE, loadAgents, commandFor, resolveContext, STEPS, NEEDED, FORMAT, INSTR_DIR, checkInstructions, instructionSets, fillVars, researchPrompt, notesFor, ideasPrompt, votePrompt, parseCriteriaScores, buildPrompt, Run, pastRuns, checkAgents, slug };
+module.exports = { questionsPrompt, parseQuestions, qaBlock, helpOf, MAX_HELP, briefPrompt, HOME, setHuman, REPORT_MATCH, adjust, wordsOf, wordLimit, PHASES, AGENTS_FILE, loadAgents, commandFor, resolveContext, STEPS, NEEDED, FORMAT, INSTR_DIR, checkInstructions, instructionSets, fillVars, researchPrompt, notesFor, ideasPrompt, votePrompt, parseCriteriaScores, buildPrompt, Run, pastRuns, checkAgents, slug };

@@ -204,6 +204,19 @@
   /* The person's own look, the agents' rooms, the adjusted score */
   label.check { display:flex; gap:8px; align-items:baseline; font-weight:normal; margin-top:14px; }
   label.check small { flex-basis:100%; }
+
+  /* ---- The agents' questions ---- */
+  .asks { position:sticky; top:56px; z-index:4; max-height:55vh; overflow:auto; background:var(--card); border:2px solid var(--warn); border-radius:10px; padding:10px 14px; margin:0 0 10px; box-shadow:0 6px 18px rgba(0,0,0,.12); }
+  .asks h2 { margin:0 0 6px; font-size:15px; color:var(--warn); }
+  .ask + .ask { border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
+  .ask textarea { min-height:56px; }
+  .ask .actions { margin-top:8px; }
+  .q { margin:4px 0; font-weight:600; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .qa { list-style:none; padding:0; margin:10px 0 0; display:grid; gap:10px; }
+  .qa li { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+  .qa .a { margin:4px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .st.asking { color:var(--warn); }
+  .who .asking .dot { background:var(--warn); } .who .asking .what { color:var(--warn); }
   .room { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; grid-column: 2 / -1; }
   .rt { font-size:11px; border:1px solid var(--line); border-radius:9px; padding:0 7px; color:var(--mute); white-space:nowrap; }
   .rt.yes { color:var(--ok); } .rt.no { color:var(--bad); } .rt.warn { color:var(--warn); }

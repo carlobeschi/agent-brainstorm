@@ -28,6 +28,9 @@ process.stdin.on('end', () => {
     }) + '\n```');
   }
   if (/writing the brief/.test(p)) return console.log(`Brief by ${name}: ${(/THE PERSON'S GOAL\n(.*)/.exec(p) || [])[1]}, written out in full.`);
+  if (/the person who set the problem will answer questions/.test(p)) return console.log(name === 'a' ? 'QUESTION: Who is it for?\nQUESTION: Any deadline?' : 'NONE');
+  // With help allowed, agent b stops once in the ideas step to ask.
+  if (name === 'b' && /Propose exactly/.test(p) && /HELP: your question/.test(p) && !/The person answered/.test(p)) return console.log('Thinking...\nHELP: Should the ideas be cheap?');
   if (/word\.txt/.test(p)) return console.log(fs.readFileSync('word.txt', 'utf8'));
   if (/Propose exactly (\d+)/.test(p)) {
     const n = Number(/Propose exactly (\d+)/.exec(p)[1]);

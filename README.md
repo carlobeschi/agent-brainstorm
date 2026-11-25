@@ -11,7 +11,7 @@ You watch it live: ideas as they come, every score with its reason, and each bui
 
 It is a way to see what several agents come up with for the same problem, how they judge each other's ideas when they can't see who wrote them, and how the same idea turns out in different hands.
 
-You choose how much to take part: from pressing Start and watching (an agent can even write the brief from a one-line goal) to choosing yourself which ideas get built and judging the results. **[docs/USING.md](docs/USING.md)** explains what the app is good for and each place where you can step in.
+You choose how much to take part. The lean default runs on its own: press Start and watch (an agent can even write the brief from a one-line goal). Optional layers make it interactive: you can choose which ideas get built, judge the results, and act as a facilitator whom the agents can ask questions before they start or whenever they need help. **[docs/USING.md](docs/USING.md)** explains what the app is good for and each place where you can step in.
 
 ## Run it
 
@@ -42,6 +42,8 @@ The agents that are not installed are greyed out. Click **Test the agents first*
 | **Ideas per agent / to carry forward / minutes to build** | The size of the run. |
 | **Words per idea, at most** | Optional cap, to test whether longer pitches win votes. |
 | **Who decides what gets built?** | The agents' vote, or you: the run waits after the vote until you choose (or hand it back to the vote). |
+| **Agents may ask me questions before they start** | After the brief, each agent may ask you up to three questions. The run waits for your answers; every agent then sees all of them, without names. |
+| **Agents may stop and ask me for help at any step** | An agent with a doubt stops and asks you. A box appears at the top of the page, and the agent's step starts again with your answer (at most twice per step). |
 | **Pick blind** | Hides authors, votes and builds until you have picked your own favourite ideas and said why (or skipped). Your pick is saved with the run; if you decide what gets built, it is your choice. |
 
 ## What you see, and what is saved
@@ -56,7 +58,7 @@ The agents that are not installed are greyed out. Click **Test the agents first*
 
 Each run is a folder in `~/.agent-brainstorm/runs/<date>-<words>/`:
 
-- `state.json`: everything the page shows, including your pick and ratings;
+- `state.json`: everything the page shows, including your pick, your ratings, and the agents' questions with your answers;
 - `steps/`: every prompt and reply;
 - `research.md`;
 - `repo/`: the copy of the context;

@@ -26,7 +26,7 @@
     return data;
   }
 
-  const PH = { setup: 'Getting ready', brief: 'Brief', choose: 'Your choice', research: 'Research', ideas: 'Ideas', vote: 'Vote', build: 'Build', done: 'Done', failed: 'Stopped by an error', stopped: 'Stopped' };
+  const PH = { setup: 'Getting ready', brief: 'Brief', questions: 'Questions', choose: 'Your choice', research: 'Research', ideas: 'Ideas', vote: 'Vote', build: 'Build', done: 'Done', failed: 'Stopped by an error', stopped: 'Stopped' };
   const ENDED = ['done', 'failed', 'stopped'];
   // A duration, short and readable: 12 s, 4.5 min, 23 min, 1 h 5 min.
   const dur = ms => {
@@ -80,6 +80,8 @@
     decide.value = saved.decide === 'me' ? 'me' : 'agents';
     const blind = h('input', { type: 'checkbox', id: 'blind' });
     blind.checked = !!saved.blind;
+    const ask = h('input', { type: 'checkbox', id: 'ask' }), help = h('input', { type: 'checkbox', id: 'help' });
+    ask.checked = !!saved.ask; help.checked = !!saved.help;
     let example = saved.example || '';
     const presets = info.presets || [];
     const exSel = h('select', { id: 'example' }, h('option', { value: '' }, 'None: write your own'), presets.map(x => h('option', { value: x.id }, x.label)));
@@ -96,7 +98,7 @@
     const msg = h('span', { class: 'msg' }), checkOut = h('div', { class: 'note' });
     const read = () => ({ problem: problem.value, context: context.value, agents: boxes.map(b => b.querySelector('input')).filter(i => i.checked).map(i => i.value),
       ideas_per_agent: Number(ideas.value), top: Number(top.value), build_minutes: Number(mins.value), research: research.value, criteria: criteria.value, instructions: instr.value,
-      max_words: Number(maxWords.value) || 0, blind: blind.checked, example, brief_by: briefBy.value, decide: decide.value });
+      max_words: Number(maxWords.value) || 0, blind: blind.checked, example, brief_by: briefBy.value, decide: decide.value, ask: ask.checked, help: help.checked });
     const go = h('button', { class: 'go', onclick: async () => {
       const body = read();
       try { localStorage.setItem('brainstorm-form', JSON.stringify(body)); } catch {}
@@ -126,6 +128,9 @@
         h('div', {}, h('label', { for: 'mins' }, 'Minutes to build'), mins),
         h('div', {}, h('label', { for: 'maxwords' }, 'Words per idea, at most ', h('small', {}, '0 = no limit')), maxWords)),
       h('label', { for: 'decide' }, 'Who decides what gets built? ', h('small', {}, 'the agents always vote; with "Me" you choose from their ideas, before or after seeing the vote')), decide,
+      h('p', { class: 'note' }, 'Left unticked, the two boxes below keep the run unattended. Ticked, you take part as a facilitator: the run pauses while an agent waits for your answer.'),
+      h('label', { class: 'check' }, ask, ' Agents may ask me questions before they start ', h('small', {}, 'after the brief, each agent can ask up to three; every agent then sees all the questions and your answers, without names')),
+      h('label', { class: 'check' }, help, ' Agents may stop and ask me for help at any step ', h('small', {}, 'an agent with a doubt stops and asks; a box appears at the top of the page; its step then starts again with your answer (at most twice per step)')),
       h('label', { class: 'check' }, blind, ' Let me pick my favourite ideas blind, before I see the votes ', h('small', {}, 'the page hides authors, votes and builds until you have picked or skipped; your pick is saved with the run')),
       h('div', { class: 'actions' }, go, test, msg),
       checkOut,
@@ -236,7 +241,7 @@
   const label = (S, id) => (S.agents.find(a => a.id === id) || {}).label || id;
   const since = (ms, pre = '') => h('span', { 'data-since': String(ms), 'data-pre': pre }, pre + dur(Date.now() - ms));
   const jump = id => { const e = document.getElementById(id); if (e) e.scrollIntoView({ block: 'start' }); };
-  const phaseNames = S => [...(S.brief_by ? ['brief'] : []), ...(S.research_mode && S.research_mode !== 'off' ? ['research'] : []), 'ideas', 'vote', ...(S.decide === 'me' ? ['choose'] : []), 'build'];
+  const phaseNames = S => [...(S.brief_by ? ['brief'] : []), ...(S.ask ? ['questions'] : []), ...(S.research_mode && S.research_mode !== 'off' ? ['research'] : []), 'ideas', 'vote', ...(S.decide === 'me' ? ['choose'] : []), 'build'];
   const clean = s => String(s || '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').trim();
   const lastLine = t => { const l = String(t || '').split('\n').map(s => s.trim()).filter(Boolean).pop() || ''; return l.length > 160 ? l.slice(0, 157) + '…' : l; };
   const firstSentence = t => { const s = clean(t).replace(/\s+/g, ' '); const m = /^.{20,220}?[.!?](\s|$)/.exec(s); return m ? m[0].trim() : s.length > 220 ? s.slice(0, 217) + '…' : s; };
@@ -286,6 +291,7 @@
   function stepStatus(st) {
     if (!st) return h('span', { class: 'st' }, 'waiting');
     if (st.status === 'running') return h('span', { class: 'st running' }, since(st.started, 'working… '));
+    if (st.status === 'asking') return h('span', { class: 'st asking' }, 'waiting for your answer');
     if (st.status === 'done') return h('span', { class: 'st done' }, `done in ${dur(st.ms)}${st.why ? ` (${st.why})` : ''}`);
     return h('span', { class: 'st failed' }, `failed: ${st.why}`);
   }
@@ -348,6 +354,7 @@
       const steps = S.agents.map(a => S.steps[`${n}/${a.id}`]).filter(Boolean);
       const c = s => steps.filter(x => x.status === s).length;
       const state = k < at ? 'past' : k === at ? (ended ? 'halt' : 'now') : 'wait';
+      if (n === 'questions') { const qs = (S.questions || []).filter(q => q.kind === 'start'); return { n, state, done: c('done'), failed: c('failed'), running: c('running'), total: S.agents.length, open: qs.filter(q => !q.answered).length }; }
       // The brief is one agent's step; the choice is the person's.
       if (n === 'choose') { const d = S.human && S.human.pick ? 1 : 0; return { n, state, done: d, failed: 0, running: 0, total: 1 }; }
       return { n, state, done: c('done'), failed: c('failed'), running: c('running'), total: n === 'brief' ? 1 : S.agents.length };
@@ -356,7 +363,7 @@
 
   const ICON = { past: '✓', now: '●', wait: '○', halt: '✕' };
   function phasePills(S, prog) {
-    const sub = p => p.n === 'choose' && p.state === 'now' ? 'waiting for you' : p.n === 'choose' && p.state === 'past' ? (S.winners_by === 'you' ? 'you chose' : 'left to the vote') : p.state === 'wait' ? 'waiting' : p.state === 'halt' ? 'stopped here'
+    const sub = p => p.n === 'questions' && p.state === 'now' && p.open ? `${p.open} waiting for you` : p.n === 'choose' && p.state === 'now' ? 'waiting for you' : p.n === 'choose' && p.state === 'past' ? (S.winners_by === 'you' ? 'you chose' : 'left to the vote') : p.state === 'wait' ? 'waiting' : p.state === 'halt' ? 'stopped here'
       : `${p.done}/${p.total} done${p.failed ? ` · ${p.failed} failed` : ''}${p.state === 'now' && p.running ? ` · ${p.running} working` : ''}`;
     const pill = (cls, icon, name, small, pct, onclick, extra = {}) => h('button', { class: 'ph ' + cls, onclick, disabled: cls === 'wait', ...extra },
       h('span', { class: 'ic', 'aria-hidden': 'true' }, icon), h('span', { class: 'nm' }, name), h('small', {}, small),
@@ -371,6 +378,9 @@
 
   function headline(S, prog) {
     if (S.phase === 'setup') return 'Getting ready: copying the material for the agents.';
+    const open = openQuestions(S).length;
+    if (open && !ENDED.includes(S.phase)) return `Your turn: ${open === 1 ? 'an agent has a question' : `the agents have ${open} questions`} for you. The run waits for your answers.`;
+    if (S.phase === 'questions') return 'Questions: each agent is deciding what to ask you before it starts.';
     if (S.phase === 'choose') return 'Your turn: choose the ideas the agents will build. Their vote is below.';
     if (S.phase === 'failed') return 'Stopped by an error' + (S.error ? ': ' + S.error : '.');
     if (S.phase === 'stopped') return 'Stopped before the end. What was done so far is below.';
@@ -400,11 +410,12 @@
             h('i', { 'data-budget': String(budget), 'data-start': String(st.started), style: `width:${Math.min(100, (Date.now() - st.started) / budget * 100).toFixed(1)}%` }));
           what.push(` of ${S.build_minutes} min`);
         }
-      } else if (st.status === 'failed') { state = 'failed'; what = `${ph}: failed (${st.why})`; }
+      } else if (st.status === 'asking') { state = 'asking'; what = `${ph}: stopped to ask you a question`; }
+      else if (st.status === 'failed') { state = 'failed'; what = `${ph}: failed (${st.why})`; }
       else {
         state = 'done';
         const behind = !ENDED.includes(S.phase) && name.split('/')[0] === S.phase;
-        what = S.phase === 'done' ? `finished · ${ph.toLowerCase()} took ${dur(st.ms)}` : `${ph}: done in ${dur(st.ms)}${behind ? ' · waiting for the others' : ''}`;
+        what = S.phase === 'done' ? `finished · ${ph.toLowerCase()} took ${dur(st.ms)}` : `${ph}: done in ${dur(st.ms)}${behind ? (openQuestions(S).length ? ' · waiting for your answers' : ' · waiting for the others') : ''}`;
       }
       return h('li', { class: state }, h('span', { class: 'dot', 'aria-hidden': 'true' }), h('b', {}, a.label), h('span', { class: 'what' }, what),
         bar, line ? h('span', { class: 'line', title: line }, line) : null, room(S, a));
@@ -663,6 +674,48 @@
         S.human && S.human.ratings ? h('span', { class: 'note' }, ` last saved ${S.human.ratings.at.slice(0, 16).replace('T', ' ')}`) : null));
   }
 
+  // ---- The agents' questions ----
+  const openQuestions = S => (S.questions || []).filter(q => !q.answered);
+  const KIND = { start: 'asks before starting', help: 'stopped and asks for help' };
+  // In a blind pick, the asker stays anonymous like the ideas' authors.
+  const asker = (S, q) => blindNow(S) ? 'An agent' : label(S, q.agent);
+  async function answer(S, q, text, msg) {
+    try { await call('POST', `/api/runs/${encodeURIComponent(S.id)}/answer`, { answers: { [q.id]: text } }); drafts.delete('ans:' + q.id); lastJSON = ''; openRun(S.id); }
+    catch (e) { msg.textContent = e.message; }
+  }
+  // The pop-up: every open question, pinned at the top until it is answered.
+  function asksBox(S) {
+    const open = openQuestions(S);
+    if (!open.length || ENDED.includes(S.phase)) return null;
+    return h('div', { class: 'asks', role: 'dialog', 'aria-label': 'The agents have questions for you', 'data-a': 'asks' },
+      h('h2', {}, open.length === 1 ? 'An agent has a question for you' : `${open.length} questions for you`),
+      open.map(q => {
+        const msg = h('span', { class: 'msg' });
+        const box = field('textarea', 'ans:' + q.id, { rows: '2', placeholder: 'Your answer', 'aria-label': 'Your answer to: ' + q.text }, '');
+        return h('div', { class: 'ask', 'data-a': 'q:' + q.id },
+          h('div', { class: 'note' }, h('b', {}, asker(S, q)), ` ${KIND[q.kind] || 'asks'}${q.kind === 'help' ? ` (${PH[q.step.split('/')[0]] || q.step})` : ''} · `, since(Date.parse(q.asked), 'waiting ')),
+          h('p', { class: 'q' }, q.text), box,
+          h('div', { class: 'actions' },
+            h('button', { class: 'go', 'data-f': 'ans:' + q.id + ':go', onclick: () => box.value.trim() ? answer(S, q, box.value.trim(), msg) : (msg.textContent = 'Write an answer, or let the agent decide.') }, 'Answer'),
+            h('button', { 'data-f': 'ans:' + q.id + ':skip', onclick: () => answer(S, q, '', msg) }, 'Let it decide'), msg));
+      }));
+  }
+  // The log: every question and answer of the run, kept in state.json.
+  function questionsLog(S) {
+    const qs = S.questions || [];
+    if (!S.ask && !qs.length) return null;
+    const qcards = S.ask ? h('div', { class: 'cards' }, S.agents.map(a => stepCard(S, `questions/${a.id}`, a.label,
+      S.steps[`questions/${a.id}`] && S.steps[`questions/${a.id}`].status === 'done' ? h('p', { class: 'note' }, plural(qs.filter(q => q.kind === 'start' && q.agent === a.id).length, 'question')) : null))) : null;
+    return h('section', { class: 'sec', id: 'sec-questions', 'data-a': 'sec-questions' },
+      h('h2', {}, 'Questions and answers', h('span', { class: 'n' }, 'what the agents asked you, and what you said; answers before the start went to every agent, without names')),
+      qcards,
+      qs.length ? h('ul', { class: 'qa' }, qs.map(q => h('li', {},
+        h('div', { class: 'note' }, h('b', {}, asker(S, q)), ` ${KIND[q.kind] || 'asked'}${q.kind === 'help' ? ` (${PH[q.step.split('/')[0]] || q.step})` : ''}`),
+        h('p', { class: 'q' }, q.text),
+        h('p', { class: 'a' }, !q.answered ? h('i', {}, 'not answered yet') : q.answer ? q.answer : h('i', {}, 'you let the agent decide')))))
+        : h('p', { class: 'note' }, S.steps && Object.keys(S.steps).some(k => k.startsWith('questions/')) && S.phase !== 'questions' ? 'No questions were asked.' : 'None yet.'));
+  }
+
   // ---- The whole run ----
   function render(S) {
     const R = S.research_mode && S.research_mode !== 'off';
@@ -671,10 +724,11 @@
     const blind = blindNow(S);
     // Not blind, but the person decides: the choice form comes after the vote.
     const choosing = !blind && S.decide === 'me' && S.phase === 'choose' && !(S.human && S.human.pick);
-    const kids = [head(S), phasePills(S, prog), statusBox(S, prog), blind || S.phase === 'choose' ? null : results(S), blind ? null : pickSummary(S)];
+    const kids = [head(S), phasePills(S, prog), asksBox(S), statusBox(S, prog), blind || S.phase === 'choose' ? null : results(S), blind ? null : pickSummary(S)];
     if (S.brief_by) kids.push(sec('brief', 'Brief', S.goal ? `written by ${label(S, S.brief_by)} from your goal` : '',
       stepCard(S, `brief/${S.brief_by}`, label(S, S.brief_by), S.goal && S.steps[`brief/${S.brief_by}`] && S.steps[`brief/${S.brief_by}`].status === 'done'
         ? h('div', {}, h('p', { class: 'note' }, 'Your goal: ' + S.goal), h('div', { class: 'problem' }, S.problem)) : null)));
+    kids.push(questionsLog(S));
 
     if (R) {
       kids.push(sec('research', 'Research', S.research_mode === 'shared' ? 'every agent then read everyone\'s findings, without names' : 'each agent then saw only its own findings',
@@ -722,7 +776,9 @@
     runRoot.replaceChildren(...kids.filter(Boolean));
 
     // Screen readers hear about phase changes only (a stable region, outside the redraw).
-    const say = S.phase === 'done' ? 'The run is finished.' : ENDED.includes(S.phase) ? 'The run stopped.' : `Now: ${PH[S.phase] || S.phase}.`;
+    const open = ENDED.includes(S.phase) ? 0 : openQuestions(S).length;
+    document.title = open ? `(${open}) Question${open > 1 ? 's' : ''} for you · Brainstorm` : 'Brainstorm';
+    const say = open ? `${open === 1 ? 'An agent has a question' : `${open} questions`} for you.` : S.phase === 'done' ? 'The run is finished.' : ENDED.includes(S.phase) ? 'The run stopped.' : `Now: ${PH[S.phase] || S.phase}.`;
     if (say !== lastSay) { lastSay = say; const ann = $('#announce'); if (ann) ann.textContent = say; }
   }
 

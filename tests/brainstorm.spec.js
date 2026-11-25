@@ -358,3 +358,68 @@ test('where the person steps in: stopping a run that waits for the person', asyn
   expect(S.phase).toBe('stopped');
   expect(S.builds).toBeNull();
 });
+
+test('where the person steps in: agents ask questions before they start, and every agent hears the answers', async ({ page }) => {
+  test.setTimeout(90000);
+  const { id } = await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'Questions first', agents: ['a', 'b'], ideas_per_agent: 1, top: 1, ask: true }) })).json();
+  let S;
+  for (let i = 0; i < 100; i++) { S = await (await api(`/api/runs/${id}`)).json(); if ((S.questions || []).length === 2) break; await new Promise(r => setTimeout(r, 200)); }
+  expect(S.phase).toBe('questions');
+  expect(S.questions.map(q => [q.agent, q.kind, q.text])).toEqual([['a', 'start', 'Who is it for?'], ['a', 'start', 'Any deadline?']]);
+  // The page shows the pop-up; one answer from the page, the other through the API.
+  await page.goto(`${BASE}/#k=${key}`);
+  await page.locator('.runlink', { hasText: 'Questions first' }).click();
+  const box = page.locator('.asks');
+  await expect(box).toContainText('2 questions for you');
+  await expect(page).toHaveTitle(/\(2\) Questions for you/);
+  await box.locator('.ask', { hasText: 'Who is it for?' }).locator('textarea').fill('Children aged 8 to 12');
+  await box.locator('.ask', { hasText: 'Who is it for?' }).getByRole('button', { name: 'Answer' }).click();
+  await expect(box).toContainText('An agent has a question for you');
+  expect((await (await api(`/api/runs/${id}/answer`, { method: 'POST', body: JSON.stringify({ answers: { q9: 'x' } }) })).json()).error).toMatch(/No open question/);
+  await box.locator('.ask', { hasText: 'Any deadline?' }).getByRole('button', { name: 'Let it decide' }).click();
+  S = await waitDone(id);
+  expect(S.phase).toBe('done');
+  expect(S.questions.every(q => q.answered)).toBe(true);
+  expect(S.questions[1].answer).toBe('');
+  for (const a of ['a', 'b']) {
+    const p = fs.readFileSync(path.join(S.dir, 'steps', 'ideas', `${a}.prompt.md`), 'utf8');
+    expect(p).toContain('Q: Who is it for?\nA: Children aged 8 to 12');
+    expect(p).toContain('Q: Any deadline?\nA: (no answer: use your own judgement)');
+    expect(p).not.toContain('HELP: your question'); // help was not turned on
+  }
+  await expect(page.locator('.asks')).toHaveCount(0);
+  await expect(page.locator('#sec-questions')).toContainText('Children aged 8 to 12');
+  await expect(page.locator('#sec-questions')).toContainText('you let the agent decide');
+});
+
+test('where the person steps in: an agent stops mid-step to ask for help, then carries on with the answer', async () => {
+  const { id } = await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'Help me', agents: ['a', 'b'], ideas_per_agent: 1, top: 1, help: true }) })).json();
+  let S;
+  for (let i = 0; i < 100; i++) { S = await (await api(`/api/runs/${id}`)).json(); if ((S.questions || []).length) break; await new Promise(r => setTimeout(r, 200)); }
+  expect(S.questions).toEqual([expect.objectContaining({ id: 'q1', agent: 'b', kind: 'help', step: 'ideas/b', text: 'Should the ideas be cheap?', answered: null })]);
+  expect(S.steps['ideas/b'].status).toBe('asking');
+  expect(S.phase).toBe('ideas');
+  await api(`/api/runs/${id}/answer`, { method: 'POST', body: JSON.stringify({ answers: { q1: 'Yes, under 100 euros' } }) });
+  S = await waitDone(id);
+  expect(S.phase).toBe('done');
+  expect(S.steps['ideas/b'].asked).toBe(1);
+  expect(S.ideas.filter(i => i.agent === 'b')).toHaveLength(1);
+  const dir = path.join(S.dir, 'steps', 'ideas');
+  expect(fs.readFileSync(path.join(dir, 'b.help-1.md'), 'utf8')).toContain('HELP: Should the ideas be cheap?');
+  const again = fs.readFileSync(path.join(dir, 'b.prompt-2.md'), 'utf8');
+  expect(again).toContain('The person answered: Yes, under 100 euros');
+  expect(again).toContain('IF YOU NEED THE PERSON'); // one more question is still allowed
+  // Help answers go only to the agent that asked.
+  expect(fs.readFileSync(path.join(S.dir, 'steps', 'vote', 'a.prompt.md'), 'utf8')).not.toContain('under 100 euros');
+});
+
+test('where the person steps in: stopping a run while an agent waits for an answer', async () => {
+  const { id } = await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'Stop while asking', agents: ['a', 'b'], ideas_per_agent: 1, top: 1, help: true }) })).json();
+  let S;
+  for (let i = 0; i < 100; i++) { S = await (await api(`/api/runs/${id}`)).json(); if ((S.questions || []).length) break; await new Promise(r => setTimeout(r, 200)); }
+  await api(`/api/runs/${id}/stop`, { method: 'POST', body: '{}' });
+  for (let i = 0; i < 50 && S.phase !== 'stopped'; i++) { await new Promise(r => setTimeout(r, 200)); S = await (await api(`/api/runs/${id}`)).json(); }
+  expect(S.phase).toBe('stopped');
+  expect(S.steps['ideas/b'].status).toBe('failed');
+  expect(S.ideas).toBeFalsy();
+});

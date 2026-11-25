@@ -1,6 +1,6 @@
 # Using agent-brainstorm
 
-This guide covers what the app is good for, and how you choose where *you* step in: from pressing Start and watching, to taking every key decision yourself.
+This guide covers what the app is good for, and how you choose where *you* step in: from pressing Start and watching, to taking every key decision yourself, to facilitating the agents as they work.
 
 ## What it is good for
 
@@ -16,7 +16,12 @@ What it is not: a way to ship code without looking. Every build stays on its own
 
 ## Where you can step in
 
-A run has five moments where a person can take part, and each has a setting on the start form.
+The app has a lean flow and optional interactive layers.
+
+- **Lean (the default).** Every check-in below is left to the agents. You press Start and the run goes from start to finish on its own, with nobody at the screen.
+- **Interactive.** Each setting you turn on adds one place where the run stops and waits for you. You can add one, several or all of them.
+
+A run has five moments where a person can take part, plus two ways for the agents to come to you. Each has a setting on the start form.
 
 | Moment | Leave it to the agents | Do it yourself | Setting |
 |---|---|---|---|
@@ -24,6 +29,8 @@ A run has five moments where a person can take part, and each has a setting on t
 | **2. Research** | Each agent researches alone and shares its findings, or keeps them. | Put what you know into the problem or the context folder, and turn research off. | **Research first?** and **Context** |
 | **3. Judging the ideas** | Agents score each other's ideas (never their own), on your criteria if you give any. | Write the criteria they must use. Add your own blind pick to compare with theirs. | **Voting criteria**, **Pick blind** |
 | **4. What gets built** | The ideas with the best average go forward. | The run stops after the vote and waits for you to choose, before or after seeing the vote. | **Who decides what gets built?** (with **Pick blind** to choose without seeing authors or votes) |
+| **Questions before the start** | Each agent works from the brief as it is. | Each agent may ask you up to three questions before any work starts. You answer each one, or let the agents decide. Every agent then sees all the questions and answers, without names. | **Agents may ask me questions before they start** |
+| **Help at any step** | An agent with a doubt decides by itself. | An agent with a doubt stops and asks you. A box appears at the top of the run page, and the tab title shows how many questions are waiting. When you answer, the agent's step starts again with your answer. | **Agents may stop and ask me for help at any step** |
 | **5. The final judgement** | There is no agent vote on the builds: you see them side by side with their reports. | Score each idea apart from each agent's execution, and note whether each report matches what you found. | **Your look at the results**, at the end of the run page |
 
 Two more settings shape a run without being check-ins: **Instructions written by** (whose words the agents follow at every step) and **Words per idea, at most**.
@@ -53,6 +60,18 @@ Two more settings shape a run without being check-ins: **Instructions written by
 - You choose first. Then the authors and the vote appear, and the run builds what you chose.
 - This keeps your judgement free of the agents' scores, and shows you afterwards where you and they disagreed.
 
+**Facilitator: the agents can come to you.** Tick one or both of the boxes for questions.
+
+- Before the start, the run shows the agents' questions in a box at the top of the page and waits. Answer each one, or press **Let it decide**.
+- With help on, any agent can stop during research, ideas, the vote or the build to ask you something. Only the agent that asked hears your answer.
+- Every question and answer is kept in the run, in **Questions and answers** on the run page and in `state.json`.
+- This is the role of a facilitator in a design sprint: you don't do the work, you remove the doubts that would send it the wrong way.
+
+Two limits to know:
+
+- An agent cannot be interrupted in the middle of its work. It stops itself by ending its turn with a question, and then its step starts again with your answer. A build keeps the files it had already changed.
+- An agent can ask for help at most twice in one step. After that it must decide alone. While a question waits, the run waits too, so leave these boxes off when nobody is watching.
+
 **Level 4: you judge the end result too.**
 
 - When the builds are done, fill in **Your look at the results**:
@@ -61,7 +80,7 @@ Two more settings shape a run without being check-ins: **Instructions written by
   - whether each report "matches", "claims more" or "claims less" than you found.
 - Over several runs, this tells you whether the ideas that win votes are the ones that turn out well.
 
-You can mix levels, for example an agent-written brief with your choice of what gets built.
+You can mix levels, for example an agent-written brief with your choice of what gets built, or questions before the start with no other check-in.
 
 ## A few tips
 

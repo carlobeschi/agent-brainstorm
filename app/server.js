@@ -90,7 +90,7 @@ async function api(req, res, url) {
     if (top > ideas * (agents.length - 1)) return send(res, 400, { error: `Carrying ${top} forward needs more ideas: each agent only sees the others' ideas.` });
     let run;
     try {
-      run = new Run({ problem, context: placeholderContext(b.context), agents, max_words: int(b.max_words, 0, 500, 0), blind: !!b.blind, decide: b.decide === 'me' ? 'me' : 'agents', brief_by: b.brief_by ? String(b.brief_by) : undefined, example: String(b.example || '').slice(0, 40) || undefined, ideas_per_agent: ideas, top, build_minutes: int(b.build_minutes, 1, 180, 30), research: String(b.research || 'off'), instructions: String(b.instructions || 'claude'), criteria: String(b.criteria || '').split('\n').map(s => s.replace(/^[\s*•\d.)-]+/, '').trim().slice(0, 200)).filter(Boolean), out: OUT });
+      run = new Run({ problem, context: placeholderContext(b.context), agents, max_words: int(b.max_words, 0, 500, 0), blind: !!b.blind, decide: b.decide === 'me' ? 'me' : 'agents', ask: !!b.ask, help: !!b.help, brief_by: b.brief_by ? String(b.brief_by) : undefined, example: String(b.example || '').slice(0, 40) || undefined, ideas_per_agent: ideas, top, build_minutes: int(b.build_minutes, 1, 180, 30), research: String(b.research || 'off'), instructions: String(b.instructions || 'claude'), criteria: String(b.criteria || '').split('\n').map(s => s.replace(/^[\s*•\d.)-]+/, '').trim().slice(0, 200)).filter(Boolean), out: OUT });
     } catch (e) { return send(res, 400, { error: String(e.message || e) }); }
     runs.set(run.S.id, run);
     run.run();
@@ -100,6 +100,12 @@ async function api(req, res, url) {
   if (!r) return send(res, 404, { error: 'no such run' });
   if (parts.length === 3 && req.method === 'GET') return send(res, 200, stateOf(r));
   if (parts[3] === 'stop' && req.method === 'POST') { if (!r.past) r.stop(); return send(res, 200, { ok: true }); }
+  if (parts[3] === 'answer' && req.method === 'POST') {
+    // The person's answers to the agents' questions: { answers: { q1: "text", q2: "" } } ("" = decide yourself).
+    if (r.past) return send(res, 400, { error: 'This run is no longer running.' });
+    const n = r.answer((await readBody(req)).answers);
+    return n ? send(res, 200, { ok: true, answered: n }) : send(res, 400, { error: 'No open question with that id.' });
+  }
   if (parts[3] === 'human' && req.method === 'POST') {
     // The person's blind pick, or their ratings after the builds; saved with the run.
     const err = setHuman(r.S, await readBody(req));
