@@ -10,6 +10,7 @@
     "test": "playwright test",
     "lint": "eslint .",
     "typecheck": "tsc -p jsconfig.json",
+    "scenarios": "node scripts/scenarios.js",
     "check": "npm run lint && npm run typecheck && npm test"
   },
   "license": "GPL-3.0-only",

@@ -78,6 +78,31 @@ Each run is a folder in `~/.agent-brainstorm/runs/<date>-<words>/`:
 
 Each example project's own tests run with `node --test` in its folder.
 
+## End-to-end scenarios
+
+`npm run scenarios` plays whole runs through the app, with a script in the person's place. It answers the agents' questions and makes the person's pick, as each scenario in `scenarios/scenarios.json` says.
+
+```sh
+npm run scenarios -- --agents claude,codex                  # all scenarios, real agents
+npm run scenarios -- --agents claude,codex --only lean-bug  # one scenario
+npm run scenarios -- --fake                                 # the tests' fake agents: free and offline
+```
+
+| Scenario | Task | Settings it tries |
+|---|---|---|
+| `lean-bug` | the shop-totals bug | the lean default: nobody at the screen |
+| `facilitated-feature` | tags in notes-cli | questions before the start and help at any step; the tag syntax is known only to the person |
+| `person-decides-blind` | the shop-totals bug, from a one-line goal | brief by an agent, shared research, criteria, a word limit, and the person's blind choice of what gets built |
+
+Each scenario gets two kinds of checks:
+
+- **Flow** (the app): did the run do what its settings say? For example: every agent built the winners, the answers reached every agent, the person's choice was built. A failed flow check makes the command exit with 1.
+- **Outcome** (the agents): each build's own tests, plus hidden tests from `scenarios/checks/` that the agents never see. The untouched copy is tested too, as a baseline.
+
+The outcome step runs the code each agent wrote, with `node --test` in a scratch copy, an empty home and only `PATH`. Add `--no-outcome` to skip it.
+
+The report (Markdown and JSON) is saved next to the runs, and the runs themselves show up on the page as usual. Cost is not measured: with subscriptions a run uses quota, not money.
+
 ## Your own agents and models
 
 The agents come from `app/agents.json`. To change them, copy it to `~/.agent-brainstorm/agents.json` (or point `BRAINSTORM_AGENTS` at a file) and edit it. Each agent has:

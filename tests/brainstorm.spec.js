@@ -423,3 +423,19 @@ test('where the person steps in: stopping a run while an agent waits for an answ
   expect(S.steps['ideas/b'].status).toBe('failed');
   expect(S.ideas).toBeFalsy();
 });
+
+test('the end-to-end scenarios run with the fake agents: every flow check passes, outcomes are measured', () => {
+  test.setTimeout(120000);
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scenarios-out-'));
+  const r = require('child_process').spawnSync('node', [path.join(__dirname, '..', 'scripts', 'scenarios.js'), '--fake', '--out', outDir], { encoding: 'utf8', timeout: 110000 });
+  expect(r.status, r.stdout + r.stderr).toBe(0);
+  const json = JSON.parse(fs.readFileSync(path.join(outDir, fs.readdirSync(outDir).find(f => f.endsWith('.json'))), 'utf8'));
+  expect(json.map(x => x.id)).toEqual(['lean-bug', 'facilitated-feature', 'person-decides-blind']);
+  for (const x of json) expect(x.flow.filter(c => !c.pass)).toEqual([]);
+  // The fake builds fix nothing: the hidden tests say so, as they do for the untouched copy.
+  const lean = json[0].outcome;
+  expect(lean.map(o => o.agent)).toEqual(['(before)', 'a', 'b']);
+  expect(lean.map(o => o.hidden.pass)).toEqual([1, 1, 1]);
+  expect(json[1].questions.some(q => q.kind === 'help' && q.agent === 'b')).toBe(true);
+  expect(json[2].winners_by).toBe('you');
+});
