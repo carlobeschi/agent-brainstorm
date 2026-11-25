@@ -1,47 +1,194 @@
 {
-  "_about": "End-to-end scenarios for scripts/scenarios.js. Each one starts a real run through the app's own API, plays the person from a script (answers, pick), then checks two things: the FLOW (did the app do what the settings say?) and the OUTCOME (did the builds work? hidden tests the agents never see, from checks/). Kept small on purpose: one or two ideas each, one carried forward.",
+  "_about": "End-to-end scenarios for scripts/scenarios.js. Each one starts a real run through the app's own API, plays the person from a script (answers, pick), then checks two things: the FLOW (did the app do what the settings say?) and the OUTCOME (did the builds work? hidden tests the agents never see, from checks/). Kept small on purpose: one or two ideas each, one carried forward. Scenarios marked \"set\": \"hard\" run only with --set hard: each harder task runs twice, once with help allowed and once alone, so the hidden tests show what asking changed.",
   "scenarios": [
     {
       "id": "lean-bug",
       "title": "Lean: press Start on a bug hunt, nobody at the screen",
       "run": {
         "problem": "Read README.md: support reports that some customers paid nothing for their order, and some say their discount code did nothing. Find the cause or causes, using the code, the data, CHANGELOG.md and logs/orders.log, then fix them with a test for each. Say what in the log is not related.",
-        "context": "@examples/shop-totals", "research": "off", "ideas_per_agent": 1, "top": 1, "build_minutes": 12
+        "context": "@examples/shop-totals",
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 12
       },
-      "expect": { "questions": false, "winners_by": "agents" },
-      "outcome": { "hidden": "shop-totals.test.js", "own_tests": true }
+      "expect": {
+        "questions": false,
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "shop-totals.test.js",
+        "own_tests": true
+      }
     },
     {
       "id": "facilitated-feature",
       "title": "Facilitator: agents may ask before they start and stop for help; one decision only the person knows",
       "run": {
         "problem": "Add tags to notes in this command-line notebook (read README.md): a person can tag a note when adding it and list only the notes with a tag. Constraints: existing notes files (version 1) must still load and other scripts must still read the files; no new dependencies; the existing tests keep passing; add tests for the new behaviour. The person who set this task has already decided the exact command-line syntax for tags, and it is not written anywhere: ask them.",
-        "context": "@examples/notes-cli", "research": "off", "ideas_per_agent": 1, "top": 1, "build_minutes": 12,
-        "ask": true, "help": true
+        "context": "@examples/notes-cli",
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 12,
+        "ask": true,
+        "help": true
       },
       "person": {
         "_answers": "The first answer whose match (a regular expression, case ignored) fits the question is given; an empty match fits any question.",
         "answers": [
-          { "match": "syntax|command[- ]line|\\bflags?\\b", "answer": "Add with: add \"text\" --tag NAME (the flag can be repeated). List with: list --tag NAME, which shows only the notes with that tag. Tag names are lowercase words." },
-          { "match": "\\bversion\\b|file format|\\bfields?\\b|other scripts", "answer": "Keep \"version\": 1. The other scripts ignore fields they do not know, so an optional tags field is fine." },
-          { "match": "", "answer": "Use your own judgement and keep it small." }
+          {
+            "match": "syntax|command[- ]line|\\bflags?\\b",
+            "answer": "Add with: add \"text\" --tag NAME (the flag can be repeated). List with: list --tag NAME, which shows only the notes with that tag. Tag names are lowercase words."
+          },
+          {
+            "match": "\\bversion\\b|file format|\\bfields?\\b|other scripts",
+            "answer": "Keep \"version\": 1. The other scripts ignore fields they do not know, so an optional tags field is fine."
+          },
+          {
+            "match": "",
+            "answer": "Use your own judgement and keep it small."
+          }
         ]
       },
-      "expect": { "questions": true, "winners_by": "agents" },
-      "outcome": { "hidden": "notes-tags.test.js", "own_tests": true }
+      "expect": {
+        "questions": true,
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "notes-tags.test.js",
+        "own_tests": true
+      }
     },
     {
       "id": "person-decides-blind",
       "title": "The person chooses blind what gets built, from a brief an agent wrote from one line",
       "run": {
         "problem": "Some customers paid nothing for their order. Find out why and fix it.",
-        "brief_by": "first", "context": "@examples/shop-totals", "research": "shared", "ideas_per_agent": 2, "top": 1, "build_minutes": 12,
-        "criteria": "Explains the evidence in the log\nFix is small and correct", "max_words": 120,
-        "decide": "me", "blind": true
+        "brief_by": "first",
+        "context": "@examples/shop-totals",
+        "research": "shared",
+        "ideas_per_agent": 2,
+        "top": 1,
+        "build_minutes": 12,
+        "criteria": "Explains the evidence in the log\nFix is small and correct",
+        "max_words": 120,
+        "decide": "me",
+        "blind": true
       },
-      "person": { "pick": "blind-random" },
-      "expect": { "questions": false, "winners_by": "you", "brief": true, "research": true },
-      "outcome": { "hidden": "shop-totals.test.js", "own_tests": true }
+      "person": {
+        "pick": "blind-random"
+      },
+      "expect": {
+        "questions": false,
+        "winners_by": "you",
+        "brief": true,
+        "research": true
+      },
+      "outcome": {
+        "hidden": "shop-totals.test.js",
+        "own_tests": true
+      }
+    },
+    {
+      "id": "hard-reminders-help",
+      "title": "Harder: time zones and clock changes; agents may stop and ask the person for the unwritten rules",
+      "run": {
+        "problem": "Read README.md: users report reminders arriving at the wrong time around the clock changes, and on the wrong day for some monthly reminders. Make every reminder fire at the right local time and on the right day all year, in any time zone, with tests for what you fix. Keep nextRun and runs as they are called today; no new dependencies. A few edge cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+        "context": "@examples/reminders",
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 20,
+        "help": true
+      },
+      "person": {
+        "answers": [
+          {
+            "match": "",
+            "answer": "Here are the team's rules. When a month does not have the day asked for (the 31st in April, the 30th in February), the reminder fires on the last day of that month, and goes back to the day asked for the month after. When the time does not exist that night because the clocks jump forward, move it forward by the hour the clocks skip: 01:30 becomes 02:30. When the time happens twice because the clocks go back, it fires only the first time."
+          }
+        ]
+      },
+      "expect": {
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "reminders.test.js",
+        "own_tests": true
+      },
+      "set": "hard"
+    },
+    {
+      "id": "hard-reminders-alone",
+      "title": "Harder: the same task, but nobody to ask; agents must guess the unwritten rules",
+      "run": {
+        "problem": "Read README.md: users report reminders arriving at the wrong time around the clock changes, and on the wrong day for some monthly reminders. Make every reminder fire at the right local time and on the right day all year, in any time zone, with tests for what you fix. Keep nextRun and runs as they are called today; no new dependencies. A few edge cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+        "context": "@examples/reminders",
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 20
+      },
+      "expect": {
+        "winners_by": "agents",
+        "questions": false
+      },
+      "outcome": {
+        "hidden": "reminders.test.js",
+        "own_tests": true
+      },
+      "set": "hard"
+    },
+    {
+      "id": "hard-contacts-help",
+      "title": "Harder: a real CSV export with quotes, line breaks, Excel marks and duplicates; agents may stop and ask",
+      "run": {
+        "problem": "Read README.md: the sales team reports broken imports from their CRM export (data/export.csv is a real one). Make importContacts read every export correctly, with tests for what you fix. Keep importContacts as it is called today; no new dependencies. A few cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+        "context": "@examples/contacts-import",
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 20,
+        "help": true
+      },
+      "person": {
+        "answers": [
+          {
+            "match": "",
+            "answer": "Here are the team's rules. The same email, in any mix of upper and lower case, is the same person: keep one contact with the values of the most recently updated row, and fill any of its empty fields from the older rows. Rows without a usable email are skipped and counted in skipped. Keep names as they are written."
+          }
+        ]
+      },
+      "expect": {
+        "winners_by": "agents"
+      },
+      "outcome": {
+        "hidden": "contacts-import.test.js",
+        "own_tests": true
+      },
+      "set": "hard"
+    },
+    {
+      "id": "hard-contacts-alone",
+      "title": "Harder: the same task, but nobody to ask",
+      "run": {
+        "problem": "Read README.md: the sales team reports broken imports from their CRM export (data/export.csv is a real one). Make importContacts read every export correctly, with tests for what you fix. Keep importContacts as it is called today; no new dependencies. A few cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+        "context": "@examples/contacts-import",
+        "research": "off",
+        "ideas_per_agent": 1,
+        "top": 1,
+        "build_minutes": 20
+      },
+      "expect": {
+        "winners_by": "agents",
+        "questions": false
+      },
+      "outcome": {
+        "hidden": "contacts-import.test.js",
+        "own_tests": true
+      },
+      "set": "hard"
     }
   ]
 }

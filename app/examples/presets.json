@@ -64,6 +64,38 @@
       "ideas_per_agent": 3,
       "top": 2,
       "build_minutes": 20
+    },
+    {
+      "id": "time-zones",
+      "label": "A harder bug: reminders, time zones and clock changes",
+      "why": "Hard to get fully right; a few edge cases have rules only you know, so agents allowed to ask for help may stop and ask.",
+      "problem": "Read README.md: users report reminders arriving at the wrong time around the clock changes, and on the wrong day for some monthly reminders. Make every reminder fire at the right local time and on the right day all year, in any time zone, with tests for what you fix. Keep nextRun and runs as they are called today; no new dependencies. A few edge cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+      "context": "@examples/reminders",
+      "research": "off",
+      "criteria": [
+        "Right local time all year, in any zone",
+        "Edge cases handled the way the team wants",
+        "Tested"
+      ],
+      "ideas_per_agent": 2,
+      "top": 1,
+      "build_minutes": 20
+    },
+    {
+      "id": "csv-import",
+      "label": "A harder bug: a messy CSV export with duplicates",
+      "why": "Quotes, line breaks, Excel marks and duplicate people; the rule for duplicates is yours to give.",
+      "problem": "Read README.md: the sales team reports broken imports from their CRM export (data/export.csv is a real one). Make importContacts read every export correctly, with tests for what you fix. Keep importContacts as it is called today; no new dependencies. A few cases follow rules the team has decided but not written down: if you meet one, ask rather than guess.",
+      "context": "@examples/contacts-import",
+      "research": "off",
+      "criteria": [
+        "Reads every real export correctly",
+        "Duplicates handled the way the team wants",
+        "Tested"
+      ],
+      "ideas_per_agent": 2,
+      "top": 1,
+      "build_minutes": 20
     }
   ]
 }

@@ -1,0 +1,5 @@
+[
+  { "name": "stand-up", "every": "day", "at": "09:00", "tz": "Europe/London" },
+  { "name": "review", "every": "week", "at": "09:00", "tz": "America/New_York", "weekday": 1 },
+  { "name": "rent", "every": "month", "at": "09:00", "tz": "Europe/London", "day": 31 }
+]

@@ -3,6 +3,7 @@
 //
 //   npm run scenarios -- --agents claude,codex            all scenarios
 //   npm run scenarios -- --agents claude,codex --only lean-bug
+//   npm run scenarios -- --agents claude,codex --set hard   the harder tasks, each with and without help
 //   npm run scenarios -- --fake                            the fake agents of the tests (free, offline)
 //
 // For each scenario in scenarios/scenarios.json it starts a run, answers the
@@ -28,6 +29,7 @@ const FAKE = flag('fake');
 const SCEN_FILE = opt('file') || path.join(ROOT, 'scenarios', 'scenarios.json');
 const CHECKS = path.join(path.dirname(SCEN_FILE), 'checks');
 const ONLY = opt('only') ? opt('only').split(',') : null;
+const SET = opt('set') || 'basic'; // basic (no "set"), hard, or all
 const LIMIT_MIN = Number(opt('minutes')) || (FAKE ? 2 : 60); // per scenario, then the run is stopped
 const POLL = FAKE ? 150 : 3000;
 const OUTCOME = !flag('no-outcome');
@@ -193,7 +195,7 @@ function report(results, agents, out) {
   }
   const flowFails = results.reduce((t, r) => t + r.flow.filter(c => !c.pass).length, 0);
   L.push(`Flow checks failed: ${flowFails}.`, '', 'Cost: not measured here. With subscriptions (Claude, ChatGPT) a run uses quota, not money; with API keys see each provider\'s usage page.');
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   fs.mkdirSync(out, { recursive: true });
   const md = path.join(out, `scenarios-${stamp}.md`);
   fs.writeFileSync(md, L.join('\n') + '\n');
@@ -203,7 +205,7 @@ function report(results, agents, out) {
 
 async function main() {
   const all = JSON.parse(fs.readFileSync(SCEN_FILE, 'utf8')).scenarios;
-  const list = all.filter(s => !ONLY || ONLY.includes(s.id));
+  const list = all.filter(s => ONLY ? ONLY.includes(s.id) : SET === 'all' || (s.set || 'basic') === SET);
   if (!list.length) throw new Error(`no scenario called ${ONLY}`);
   const { app, api } = await startApp();
   const stop = () => { try { app.kill(); } catch { /* gone */ } };
