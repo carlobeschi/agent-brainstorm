@@ -20,8 +20,10 @@
         "ask": true, "help": true
       },
       "person": {
+        "_answers": "The first answer whose match (a regular expression, case ignored) fits the question is given; an empty match fits any question.",
         "answers": [
-          { "match": "syntax|flag|option|command|how .*tag|format of", "answer": "Add with: add \"text\" --tag NAME (the flag can be repeated). List with: list --tag NAME, which shows only the notes with that tag. Tag names are lowercase words." },
+          { "match": "syntax|command[- ]line|\\bflags?\\b", "answer": "Add with: add \"text\" --tag NAME (the flag can be repeated). List with: list --tag NAME, which shows only the notes with that tag. Tag names are lowercase words." },
+          { "match": "\\bversion\\b|file format|\\bfields?\\b|other scripts", "answer": "Keep \"version\": 1. The other scripts ignore fields they do not know, so an optional tags field is fine." },
           { "match": "", "answer": "Use your own judgement and keep it small." }
         ]
       },

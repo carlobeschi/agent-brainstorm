@@ -141,10 +141,11 @@ function copyBuild(from) {
 }
 function nodeTest(cwd, files) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'brainstorm-home-'));
-  const r = spawnSync('node', ['--test', ...files], { cwd, encoding: 'utf8', timeout: 120000, env: { PATH: process.env.PATH, HOME: home } });
+  const r = spawnSync('node', ['--test', '--test-reporter=tap', ...files], { cwd, encoding: 'utf8', timeout: 120000, env: { PATH: process.env.PATH, HOME: home } });
   const num = k => Number((new RegExp(`^# ${k} (\\d+)`, 'm').exec(r.stdout || '') || [])[1] || 0);
   const failed = (r.stdout || '').split('\n').filter(l => /^not ok \d+ - /.test(l.trim())).map(l => l.trim().replace(/^not ok \d+ - /, ''));
-  return { pass: num('pass'), fail: num('fail'), failed, timedOut: !!r.error };
+  // Newer Node prints a different summary unless asked for TAP; no count at all means we could not read it.
+  return { pass: num('pass'), fail: num('fail'), failed, timedOut: !!r.error, unread: !/^# (pass|fail) \d+/m.test(r.stdout || '') };
 }
 function outcomes(sc, S) {
   if (!OUTCOME || !sc.outcome || !S.builds) return [];
@@ -221,6 +222,8 @@ async function main() {
       try { S = await play(api, sc, agents); } catch (e) { error = String(e.message || e); log(`${sc.id}: ${error}`); }
       const flow = S ? flowChecks(sc, S) : [{ name: 'the run started', pass: false, detail: error }];
       const out = S ? outcomes(sc, S) : [];
+      const base = out.find(o => o.agent === '(before)');
+      if (base && base.hidden) flow.push({ name: 'the hidden tests could be run and counted', pass: !base.hidden.unread && base.hidden.pass + base.hidden.fail > 0, detail: base.hidden.unread ? 'no test summary read' : '' });
       results.push({ sc, S, error, flow, out });
       log(`${sc.id}: flow ${flow.filter(c => c.pass).length}/${flow.length}${out.length ? ' · hidden tests ' + out.filter(o => o.agent !== '(before)').map(o => `${o.agent} ${o.hidden ? `${o.hidden.pass}/${o.hidden.pass + o.hidden.fail}` : '–'}`).join(', ') : ''}`);
     }
