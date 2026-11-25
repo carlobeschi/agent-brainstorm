@@ -11,7 +11,7 @@ const file = path.join(process.cwd(), DOC);
 const doc = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
 
 // Every file in the folder, and every name defined in its code.
-const files = [], names = new Set();
+const files = [], names = new Set(), strings = new Set();
 (function walk(d) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     if (['.git', 'node_modules', '.hidden-check'].includes(e.name)) continue;
@@ -19,15 +19,20 @@ const files = [], names = new Set();
     if (e.isDirectory()) walk(p);
     else {
       files.push(path.relative(process.cwd(), p).split(path.sep).join('/'));
+      if (/\.(js|mjs|cjs|ts)$/.test(e.name)) for (const m of fs.readFileSync(p, 'utf8').matchAll(/['"`]([\w.-]+\.[a-z]{2,4})\b/g)) strings.add(m[1]);
       if (/\.(js|mjs|cjs|ts)$/.test(e.name)) for (const m of fs.readFileSync(p, 'utf8').matchAll(/(?:function\s+|(?:const|let|var)\s+|^\s*(?:async\s+)?)([A-Za-z_$][\w$]*)\s*(?:=\s*(?:async\s*)?(?:\(|function|\w+\s*=>)|\()/gm)) names.add(m[1]);
     }
   }
 })(process.cwd());
 const ticks = [...doc.matchAll(/`([^`\n]{1,80})`/g)].map(m => m[1].trim());
 const paths = ticks.filter(t => /^[\w./-]+\.(js|json|md|html|css|csv|txt|log)$/.test(t) || /^[\w-]+\/[\w./-]+$/.test(t));
-const fns = ticks.map(t => (/^([A-Za-z_$][\w$.]*)\(\)?/.exec(t) || [])[1]).filter(Boolean).map(f => f.split('.').pop());
+// Built-ins (Math.round) and methods of objects the code doesn't define (a proposed Money.fromEuros) are not checked.
+const BUILTIN = /^(Math|JSON|Object|Array|Number|String|Date|Promise|console|process|fs|path|Intl|Set|Map)$/;
+const fns = ticks.map(t => (/^([A-Za-z_$][\w$.]*)\(\)?/.exec(t) || [])[1]).filter(Boolean)
+  .filter(f => { const head = f.split('.')[0]; return !f.includes('.') || (!BUILTIN.test(head) && names.has(head)); }).map(f => f.split('.').pop());
 // A path counts if it names a file or folder here, also when written from a parent folder (app/engine.js for engine.js).
-const pathOk = p => { const q = p.replace(/^\.\//, '').replace(/\/$/, ''); return files.some(f => f === q || f.endsWith('/' + q) || q.endsWith('/' + f) || f.startsWith(q + '/') || q.split('/').slice(1).some((_, k, a) => f.startsWith(a.slice(k).join('/') + '/'))); };
+// Files the program writes at run time (named as strings in its code) count too.
+const pathOk = p => { const q = p.replace(/^\.\//, '').replace(/\/$/, ''); if (strings.has(q)) return true; return files.some(f => f === q || f.endsWith('/' + q) || q.endsWith('/' + f) || f.startsWith(q + '/') || q.split('/').slice(1).some((_, k, a) => f.startsWith(a.slice(k).join('/') + '/'))); };
 
 test(`${DOC} exists`, () => { assert.ok(doc, `no ${DOC}`); });
 test(`at most ${MAX} words`, () => { const n = (doc.match(/\S+/g) || []).length; assert.ok(n > 0 && n <= MAX, `${n} words`); });

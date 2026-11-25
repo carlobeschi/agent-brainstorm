@@ -20,11 +20,18 @@
     X.started = new Date(wall(start)).toISOString();
     X.finished = over ? new Date(wall(end)).toISOString() : null;
     X.replay = Math.round(speed);
-    const done = n => { const st = S.steps[n]; return st && st.started + (st.ms || 0) <= r; };
+    // A step that waited for an answer restarted its clock: began..ended is the whole step.
+    // Runs saved before "ended" was kept: the step ended no later than the next phase began,
+    // and began no later than its first question.
+    const asked = n => (S.questions || []).filter(q => q.step === n).map(q => Date.parse(q.asked));
+    const later = n => Object.entries(S.steps).filter(([m]) => PHASES.indexOf(m.split('/')[0]) > PHASES.indexOf(n.split('/')[0])).map(([, x]) => x.began || x.started);
+    const t0 = (st, n) => st.began || Math.min(st.started, ...asked(n));
+    const t1 = (st, n) => st.ended || Math.min(st.started + (st.ms || 0), ...later(n));
+    const done = n => { const st = S.steps[n]; return st && t1(st, n) <= r; };
     X.steps = {};
     for (const [n, st] of Object.entries(S.steps)) {
-      if (!st.started || st.started > r) continue;
-      X.steps[n] = done(n) ? { ...st, started: wall(st.started) } : { ...st, status: 'running', started: wall(st.started), ms: null, why: null, reply: '', live: { out: '', err: '' } };
+      if (!st.started || t0(st, n) > r) continue;
+      X.steps[n] = done(n) ? { ...st, started: wall(st.started) } : { ...st, status: 'running', started: wall(Math.min(st.started, r)), ms: null, why: null, reply: '', live: { out: '', err: '' } };
     }
     const allDone = p => S.agents.every(a => !S.steps[`${p}/${a.id}`] || done(`${p}/${a.id}`)) && S.agents.some(a => S.steps[`${p}/${a.id}`]);
     let phase = 'setup';

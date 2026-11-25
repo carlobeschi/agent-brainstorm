@@ -551,7 +551,7 @@ class Run {
     fs.mkdirSync(path.dirname(base), { recursive: true });
     let full = prompt + qaBlock(S) + (asks ? helpRule(mode, true) : help ? ALONE : '');
     fs.writeFileSync(base + '.prompt.md', full);
-    const st = this.S.steps[name] = { agent: agent.id, mode, status: 'running', started: Date.now(), ms: null, why: null, tries: 1, first_why: null, asked: 0, reply: '', live: { out: '', err: '' } };
+    const st = this.S.steps[name] = { agent: agent.id, mode, status: 'running', started: Date.now(), began: Date.now(), ended: null, ms: null, why: null, tries: 1, first_why: null, asked: 0, reply: '', live: { out: '', err: '' } };
     let r = await this.attempt(st, agent, mode, full, cwd, ms);
     let spent = r.ms;
     while (asks && !r.why && !this.stopped && st.asked < MAX_HELP) {
@@ -569,7 +569,8 @@ class Run {
       spent += r.ms;
     }
     if (r.err) fs.writeFileSync(base + '.stderr.txt', r.err);
-    st.ms = spent;
+    st.ms = spent; // time working, without the waits for answers
+    st.ended = Date.now(); // began..ended is the whole step, waits included
     st.why = this.stopped ? 'stopped' : r.why;
     // A build that ran out of time may still have done good work: it is kept.
     const ok = !st.why || (mode === 'build' && st.why === 'timed out');

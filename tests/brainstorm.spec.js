@@ -456,6 +456,7 @@ test('the online demo: slides, then the page replays a saved run, with nothing t
   await new Promise(r => setTimeout(r, 300));
   await api(`/api/runs/${id}/answer`, { method: 'POST', body: JSON.stringify({ answers: { q1: 'Yes, cheap' } }) });
   const S = await waitDone(id);
+  expect(Object.values(S.steps).every(st => st.began && st.ended >= st.began)).toBe(true); // the whole step, waits included
   // One agent's vote ends well before the other's, as with real agents: the replay shows the gap.
   const sf = path.join(S.dir, 'state.json'), saved = JSON.parse(fs.readFileSync(sf, 'utf8'));
   saved.steps['vote/a'].ms += 3000; saved.finished = new Date(Date.parse(saved.finished) + 3000).toISOString();

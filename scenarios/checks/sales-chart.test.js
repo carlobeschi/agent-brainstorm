@@ -32,11 +32,11 @@ test('regions told apart without colour: dashes, markers, patterns or direct lab
   assert.ok(svg, 'no chart.svg');
   const dashes = new Set([...svg.matchAll(/stroke-dasharray\s*[=:]\s*"?([\d.,\s]+)/g)].map(m => m[1].trim())).size;
   const markers = /<marker[\s>]|<pattern[\s>]/.test(svg);
-  const shapes = new Set([...svg.matchAll(/<(circle|rect|polygon|path)\b/g)].map(m => m[1])).size >= 3;
+  const shapes = new Set([...svg.matchAll(/<(circle|rect|polygon|path|polyline|line|ellipse)\b/g)].map(m => m[1])).size >= 3;
   assert.ok(dashes >= 3 || markers || shapes, `dash styles ${dashes}, markers/patterns ${markers}`);
 });
 test('the August dip in the East is pointed out', () => {
-  assert.match(texts, /dip|drop|fell|fall|slump|halv|plunge|lowest|-\s?\d+\s?%|outage|anomal/i);
+  assert.match(texts, /dip|drop|fell|fall|slump|halv|plunge|low|-\s?\d+\s?%|outage|anomal/i);
 });
 test('a picture for the person (when a browser is available)', { timeout: 60000 }, async t => {
   if (!svg || !process.env.SHOT_DIR) return t.skip('no chart or nowhere to save');

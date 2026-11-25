@@ -34,7 +34,8 @@ const runs = cfg.runs.map((r, k) => {
   const S = deep(JSON.parse(moved(JSON.stringify(raw))));
   S.dir = home;
   for (const [a, b] of Object.entries(S.builds || {})) if (b && b.folder) b.folder = `${home}/build/${a}`;
-  for (const st of Object.values(S.steps || {})) if (st.live) st.live = { out: '', err: st.live.err ? clean(st.live.err).slice(-1500) : '' };
+  // The agents' own terminal output is left out: it can hold anything (an `ls -l` shows the owner's name).
+  for (const st of Object.values(S.steps || {})) if (st.live) st.live = { out: '', err: '' };
   const files = {};
   const add = (key, file) => { if (fs.existsSync(file) && fs.statSync(file).size <= MAX_FILE) { const t = fs.readFileSync(file, 'utf8'); if (!t.includes('\0')) files[key] = clean(t); } };
   for (const a of S.agents) {
