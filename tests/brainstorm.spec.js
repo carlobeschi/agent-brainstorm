@@ -283,10 +283,10 @@ test('a blind run from the page: the pick comes first, then votes (raw and adjus
 
 test('ready-made software scenarios: presets, their small projects, and @ contexts', async () => {
   const { presets } = await (await api('/api/agents')).json();
-  expect(presets.map(p => p.id)).toEqual(['small-ui', 'bug-hunt', 'constrained-feature', 'open-brief']);
+  expect(presets.map(p => p.id)).toEqual(['small-ui', 'bug-hunt', 'constrained-feature', 'open-brief', 'time-zones', 'csv-import']);
   const ex = path.join(__dirname, '..', 'app', 'examples');
   // The example projects' own tests pass, and the shop bug is really there (a fixed code empties the order).
-  for (const d of ['shop-totals', 'notes-cli']) execFileSync('node', ['--test'], { cwd: path.join(ex, d), stdio: 'pipe' });
+  for (const d of ['shop-totals', 'notes-cli', 'reminders', 'contacts-import']) execFileSync('node', ['--test'], { cwd: path.join(ex, d), stdio: 'pipe' });
   const out = execFileSync('node', ['-e', 'const {total}=require("./src/cart");console.log(total({items:[{sku:"book",qty:1}],code:"FIVEOFF"}).total + "")'], { cwd: path.join(ex, 'shop-totals'), encoding: 'utf8' });
   expect(out.trim()).toBe('0');
   expect((await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'x', agents: ['a', 'b'], context: '@nope' }) })).json()).error).toMatch(/unknown context/);
@@ -386,6 +386,7 @@ test('where the person steps in: agents ask questions before they start, and eve
     expect(p).toContain('Q: Who is it for?\nA: Children aged 8 to 12');
     expect(p).toContain('Q: Any deadline?\nA: (no answer: use your own judgement)');
     expect(p).not.toContain('HELP: your question'); // help was not turned on
+    expect(p).toContain('NOBODY TO ASK'); // so no plan waits on a question
   }
   await expect(page.locator('.asks')).toHaveCount(0);
   await expect(page.locator('#sec-questions')).toContainText('Children aged 8 to 12');
@@ -409,6 +410,7 @@ test('where the person steps in: an agent stops mid-step to ask for help, then c
   const again = fs.readFileSync(path.join(dir, 'b.prompt-2.md'), 'utf8');
   expect(again).toContain('The person answered: Yes, under 100 euros');
   expect(again).toContain('IF YOU NEED THE PERSON'); // one more question is still allowed
+  expect(again).not.toContain('NOBODY TO ASK');
   // Help answers go only to the agent that asked.
   expect(fs.readFileSync(path.join(S.dir, 'steps', 'vote', 'a.prompt.md'), 'utf8')).not.toContain('under 100 euros');
 });
@@ -438,4 +440,10 @@ test('the end-to-end scenarios run with the fake agents: every flow check passes
   expect(lean.map(o => o.hidden.pass)).toEqual([1, 1, 1]);
   expect(json[1].questions.some(q => q.kind === 'help' && q.agent === 'b')).toBe(true);
   expect(json[2].winners_by).toBe('you');
+  // The harder set: hidden tests are counted, and the untouched copies fail most of them.
+  const h = require('child_process').spawnSync('node', [path.join(__dirname, '..', 'scripts', 'scenarios.js'), '--fake', '--set', 'hard', '--out', outDir], { encoding: 'utf8', timeout: 110000 });
+  expect(h.status, h.stdout + h.stderr).toBe(0);
+  const hard = JSON.parse(fs.readFileSync(path.join(outDir, fs.readdirSync(outDir).filter(f => f.endsWith('.json')).sort().pop()), 'utf8'));
+  expect(hard.map(x => x.id)).toEqual(['hard-reminders-help', 'hard-reminders-alone', 'hard-contacts-help', 'hard-contacts-alone']);
+  expect(hard.map(x => x.outcome[0].hidden.fail)).toEqual([8, 8, 8, 8]);
 });

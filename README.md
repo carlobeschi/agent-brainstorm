@@ -31,7 +31,7 @@ The agents that are not installed are greyed out. Click **Test the agents first*
 
 | Setting | What it does |
 |---|---|
-| **Start from an example** | Fills in the form with one of four ready-made software scenarios (below). |
+| **Start from an example** | Fills in the form with one of six ready-made software scenarios (below). |
 | **The problem** | What the agents should explore, in your own words. |
 | **Who writes the brief?** | You (what you typed is the problem), or one of the agents, from what you typed as a short goal. |
 | **Context** | A folder on your computer or a git link. The agents read it; each builds on its own copy, and the original is never changed. Leave empty for no material. |
@@ -67,7 +67,7 @@ Each run is a folder in `~/.agent-brainstorm/runs/<date>-<words>/`:
 
 ## Examples
 
-**Start from an example** offers four kinds of software work:
+**Start from an example** offers four kinds of software work, and two harder bugs:
 
 | Example | Context | What it shows |
 |---|---|---|
@@ -75,6 +75,13 @@ Each run is a folder in `~/.agent-brainstorm/runs/<date>-<words>/`:
 | An unfamiliar bug | `app/examples/shop-totals`: a tiny shop whose clues are spread across code, data, a changelog and an order log, with a red herring | Whether agents gain from sharing what they find, not just ideas. |
 | A constrained feature | `app/examples/notes-cli`: a small notes tool with tests and a file format other scripts read | How ideas survive a real codebase and its rules. |
 | An open brief | this app (`@app`): "make it easier for a first-time user" | Whether different agents notice different problems before proposing solutions. |
+
+Two harder ones are on the same menu:
+
+| Example | Context | What it shows |
+|---|---|---|
+| Reminders, time zones and clock changes | `app/examples/reminders` | A bug that is hard to fix completely. A few edge cases follow rules only you know, so agents allowed to ask may stop and ask. |
+| A messy CSV export with duplicates | `app/examples/contacts-import` | Quotes, line breaks, Excel marks and duplicate people. The rule for duplicates is yours to give. |
 
 Each example project's own tests run with `node --test` in its folder.
 
@@ -93,6 +100,8 @@ npm run scenarios -- --fake                                 # the tests' fake ag
 | `lean-bug` | the shop-totals bug | the lean default: nobody at the screen |
 | `facilitated-feature` | tags in notes-cli | questions before the start and help at any step; the tag syntax is known only to the person |
 | `person-decides-blind` | the shop-totals bug, from a one-line goal | brief by an agent, shared research, criteria, a word limit, and the person's blind choice of what gets built |
+
+`--set hard` runs the harder tasks instead (reminders and contacts-import). Each runs twice: once with help allowed, once with nobody to ask. Comparing the hidden tests of the two runs shows what asking changed. `--set all` runs everything.
 
 Each scenario gets two kinds of checks:
 
