@@ -447,3 +447,47 @@ test('the end-to-end scenarios run with the fake agents: every flow check passes
   expect(hard.map(x => x.id)).toEqual(['hard-reminders-help', 'hard-reminders-alone', 'hard-contacts-help', 'hard-contacts-alone']);
   expect(hard.map(x => x.outcome[0].hidden.fail)).toEqual([8, 8, 8, 8]);
 });
+
+test('the online demo: slides, then the page replays a saved run, with nothing to act on', async ({ page }) => {
+  test.setTimeout(60000);
+  // A finished run with a question, from this server's runs.
+  const { id } = await (await api('/api/runs', { method: 'POST', body: JSON.stringify({ problem: 'Demo run', agents: ['a', 'b'], ideas_per_agent: 1, top: 1, help: true }) })).json();
+  for (let i = 0; i < 100; i++) { const S = await (await api(`/api/runs/${id}`)).json(); if ((S.questions || []).some(q => !q.answered)) break; await new Promise(r => setTimeout(r, 100)); }
+  await new Promise(r => setTimeout(r, 300));
+  await api(`/api/runs/${id}/answer`, { method: 'POST', body: JSON.stringify({ answers: { q1: 'Yes, cheap' } }) });
+  const S = await waitDone(id);
+  expect(Object.values(S.steps).every(st => st.began && st.ended >= st.began)).toBe(true); // the whole step, waits included
+  // One agent's vote ends well before the other's, as with real agents: the replay shows the gap.
+  const sf = path.join(S.dir, 'state.json'), saved = JSON.parse(fs.readFileSync(sf, 'utf8'));
+  saved.steps['vote/a'].ms += 3000; saved.finished = new Date(Date.parse(saved.finished) + 3000).toISOString();
+  fs.writeFileSync(sf, JSON.stringify(saved));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-'));
+  fs.writeFileSync(path.join(dir, 'demo.json'), JSON.stringify({ title: 'Demo title', intro: 'Intro.', repo: 'https://example.com', runs: [{ dir: S.dir, title: 'Run one', subtitle: 'sub', slides: [{ title: 'Slide A', text: ['a'] }, { title: 'Slide B', text: ['b'] }] }] }));
+  const out = path.join(dir, 'site');
+  const log = execFileSync('node', [path.join(__dirname, '..', 'scripts', 'build-demo.js'), path.join(dir, 'demo.json'), out], { encoding: 'utf8' });
+  expect(log).toContain('1 runs');
+  const data = fs.readFileSync(path.join(out, 'runs.js'), 'utf8');
+  expect(data).not.toContain(os.tmpdir() + '/brainstorm-home'); // the run folder is not shown as it was
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e)));
+  await page.clock.install(); // the replay follows the clock: move it on instead of waiting
+  await page.goto('file://' + path.join(out, 'index.html'));
+  await expect(page.locator('.deck h1')).toHaveText('Demo title');
+  await page.locator('.pick', { hasText: 'Run one' }).click();
+  await expect(page.locator('.deck h1')).toHaveText('Slide A');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Watch the run' }).click();
+  await expect(page.locator('.replaybar')).toBeVisible();
+  await expect(page.locator('.runhead .title')).toHaveText('Demo run');
+  // Early in the replay the run is still going; nothing on the page can act on it.
+  await expect(page.locator('.phases')).toBeVisible();
+  await expect(page.locator('.runhead .stop')).toBeHidden();
+  // Later, the question appears as it did live; at the end, with its answer.
+  for (let t = 0; t < 95; t += 2) await page.clock.runFor(2000); // through every moment, not only the end
+  await expect(page.locator('#sec-questions')).toContainText('Should the ideas be cheap?');
+  await expect(page.locator('#sec-questions')).toContainText('Yes, cheap');
+  await expect(page.locator('.asks textarea')).toBeHidden();
+  await page.getByRole('button', { name: 'All demos' }).click();
+  await expect(page.locator('.deck h1')).toHaveText('Demo title');
+  expect(errors).toEqual([]);
+});

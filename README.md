@@ -101,6 +101,19 @@ npm run scenarios -- --fake                                 # the tests' fake ag
 | `facilitated-feature` | tags in notes-cli | questions before the start and help at any step; the tag syntax is known only to the person |
 | `person-decides-blind` | the shop-totals bug, from a one-line goal | brief by an agent, shared research, criteria, a word limit, and the person's blind choice of what gets built |
 
+`--set more` runs six scenarios of different kinds. Each one says, before it runs, what it should teach us:
+
+| Scenario | Kind | Hidden check |
+|---|---|---|
+| `more-calc` | technical: a calculator that must follow an exact spec | 12 graded cases, including error positions |
+| `more-speed` | technical: make a slow function fast | same output on every case, and a whole book in under 2 seconds |
+| `more-chart` | build: a chart for a report printed in black and white | a self-contained SVG that names every region, tells them apart without colour and points out the dip in the data; a picture of each chart |
+| `more-animation` | build, open-ended: explain the blind vote to a 12-year-old | a self-contained page that moves and runs without errors; three frames of each |
+| `more-decision` | think and document: a decision record | at most 500 words, the asked sections, every file and function it names exists |
+| `more-guide` | open-ended document, with questions first: a guide to this app for a new contributor | every file and function it names exists |
+
+The pictures need Playwright's Chromium (`npx playwright install chromium`); without it they are skipped.
+
 `--set hard` runs the harder tasks instead (reminders and contacts-import). Each runs twice: once with help allowed, once with nobody to ask. Comparing the hidden tests of the two runs shows what asking changed. `--set all` runs everything.
 
 Each scenario gets two kinds of checks:
@@ -111,6 +124,16 @@ Each scenario gets two kinds of checks:
 The outcome step runs the code each agent wrote, with `node --test` in a scratch copy, an empty home and only `PATH`. Add `--no-outcome` to skip it.
 
 The report (Markdown and JSON) is saved next to the runs, and the runs themselves show up on the page as usual. Cost is not measured: with subscriptions a run uses quota, not money.
+
+## An online demo
+
+Nothing runs online: the agents need your computer. What can go online is a replay. `scripts/build-demo.js` turns a few saved runs into a static page: a short set of slides for each run, then the app's own page replaying the run, sped up to about a minute and a half. Nothing on it can start, answer or stop anything.
+
+```
+node scripts/build-demo.js demo/demo.json docs/demo
+```
+
+`demo/demo.json` names the run folders and the slides (`title`, `text`, an optional `image`). Home folder paths are taken out of everything copied, and the script then lists every line that still looks personal (a path, an email address, a key, or a word you add under `watch`), for you to read before you publish the folder, for example with GitHub Pages.
 
 ## Your own agents and models
 
